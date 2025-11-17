@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, validator
 import csv
 import os
@@ -11,6 +12,9 @@ from typing import List, Dict, Optional
 from datetime import datetime
 
 app = FastAPI()
+
+# Serwuj pliki statyczne (SVG, itp.)
+app.mount("/static", StaticFiles(directory="."), name="static")
 
 # CORS middleware dla lokalnego developmentu
 app.add_middleware(

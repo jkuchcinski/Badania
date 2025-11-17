@@ -31,6 +31,13 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.1);
         }
 
+        .login-logo {
+            display: block;
+            margin: 0 auto 50px auto;
+            max-width: 100%;
+            height: auto;
+        }
+
         .login-container h1 {
             text-align: center;
             color: #212121;
@@ -88,6 +95,20 @@
             margin-top: 16px;
             display: none;
             font-size: 14px;
+        }
+
+        .copyright {
+            text-align: center;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #e0e0e0;
+            color: #757575;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .copyright p {
+            margin: 4px 0;
         }
 
         .app-container {
@@ -902,12 +923,17 @@
 <body>
     <!-- Ekran logowania -->
     <div class="login-container" id="loginContainer">
+        <img src="/static/decent-code-1024x0.png" alt="Decent Code Logo" class="login-logo">
         <h1>System Badań Lekarskich</h1>
         <form class="login-form" id="loginForm">
             <input type="password" id="passwordInput" placeholder="Wprowadź hasło" required>
             <button type="submit">Zaloguj</button>
             <div class="error-message" id="errorMessage">Nieprawidłowe hasło</div>
         </form>
+        <div class="copyright">
+            <p>&copy; 2025 Decent Code sp. z o.o.</p>
+            <p>All rights reserved</p>
+        </div>
     </div>
 
     <!-- Główna aplikacja -->
