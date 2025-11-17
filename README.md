@@ -29,17 +29,77 @@ Aplikacja wczytuje plik `badania.csv` z Google Cloud Storage bucket o nazwie `hi
 
 ## Lokalne uruchomienie
 
+### Wymagania
+
+- Python 3.11 lub nowszy
+- pip (menedżer pakietów Pythona)
+
+**Uwaga dla użytkowników macOS:** Na macOS często trzeba używać `python3` i `pip3` zamiast `python` i `pip`. Jeśli otrzymujesz błąd "command not found", spróbuj:
+- `pip3` zamiast `pip`
+- `python3` zamiast `python`
+- `python3 -m pip` jako alternatywa dla `pip3`
+
+### Metoda 1: Bezpośrednie uruchomienie (najprostsze)
+
 ```bash
-# Zainstaluj zależności
-pip install -r requirements.txt
+# Zainstaluj zależności (użyj pip3 na macOS jeśli pip nie działa)
+pip3 install -r requirements.txt
+# lub alternatywnie:
+python3 -m pip install -r requirements.txt
 
 # Uruchom aplikację
-python main.py
+python3 main.py
 ```
 
-Aplikacja będzie dostępna pod adresem: http://localhost:8080
+Aplikacja będzie dostępna pod adresem: **http://localhost:8080**
 
-**Uwaga:** W środowisku lokalnym aplikacja użyje lokalnego pliku `badania.csv` jeśli Cloud Storage nie jest skonfigurowany.
+### Metoda 2: Uruchomienie przez uvicorn
+
+```bash
+# Zainstaluj zależności (użyj pip3 na macOS jeśli pip nie działa)
+pip3 install -r requirements.txt
+# lub alternatywnie:
+python3 -m pip install -r requirements.txt
+
+# Uruchom aplikację przez uvicorn
+python3 -m uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+```
+
+Flaga `--reload` włącza automatyczne przeładowanie przy zmianach w kodzie (przydatne podczas developmentu).
+
+### Metoda 3: Uruchomienie przez Docker
+
+```bash
+# Zbuduj obraz Docker
+docker build -t badania-app .
+
+# Uruchom kontener
+docker run -p 8080:8080 badania-app
+```
+
+Aplikacja będzie dostępna pod adresem: **http://localhost:8080**
+
+**Uwaga:** W środowisku lokalnym aplikacja automatycznie użyje lokalnego pliku `badania.csv` (jeśli istnieje w katalogu głównym projektu) jako fallback, jeśli Google Cloud Storage nie jest skonfigurowany lub niedostępny.
+
+### Rozwiązywanie problemów
+
+**Problem: "command not found: pip"**
+- Na macOS użyj `pip3` zamiast `pip`
+- Lub użyj `python3 -m pip` jako alternatywy
+- Sprawdź, czy Python jest zainstalowany: `python3 --version`
+- Jeśli pip nie jest zainstalowany, zainstaluj go: `python3 -m ensurepip --upgrade`
+
+**Problem: "command not found: python"**
+- Na macOS użyj `python3` zamiast `python`
+- Sprawdź instalację: `which python3`
+
+**Problem: "ModuleNotFoundError: No module named 'fastapi'"**
+- Problem występuje, gdy używasz innej wersji Pythona do uruchomienia niż ta, w której zainstalowałeś pakiety
+- Sprawdź wersję Pythona: `python3 --version`
+- Sprawdź dostępne wersje: `python3.9 --version`, `python3.10 --version`, itd.
+- Zainstaluj pakiety dla właściwej wersji: `python3.9 -m pip install -r requirements.txt`
+- Uruchom aplikację używając tej samej wersji: `python3.9 main.py`
+- Alternatywnie, użyj `python3.9 -m uvicorn main:app --host 0.0.0.0 --port 8080`
 
 ## Publikacja na Google Cloud Run
 
