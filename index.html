@@ -297,9 +297,13 @@
 
         .edit-table th,
         .edit-table td {
-            padding: 10px;
-            border: 1px solid #ddd;
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
             text-align: left;
+        }
+        
+        .edit-table tbody tr:last-child td {
+            border-bottom: none;
         }
 
         .edit-table thead {
@@ -343,7 +347,7 @@
             width: 100%;
             padding: 12px;
             border: none;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 2px solid transparent;
             border-radius: 0;
             font-size: 14px;
             box-sizing: border-box;
@@ -354,7 +358,6 @@
         .edit-table input:focus {
             outline: none;
             border-bottom-color: #1976d2;
-            border-bottom-width: 2px;
         }
 
         .edit-table input.error {
@@ -677,6 +680,30 @@
             background: white;
         }
 
+        .save-payment-button {
+            background: #388e3c;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.3s, box-shadow 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .save-payment-button:hover {
+            background: #2e7d32;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .save-payment-button:active {
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
         .remove-all-button {
             background: #d32f2f;
             color: white;
@@ -777,9 +804,14 @@
             <div class="right-panel">
                 <div class="panel-title">
                     <span>Wybrane badania</span>
-                    <button class="remove-all-button" id="removeAllButton" onclick="removeAllBadania()" style="display: none;">
-                        Usuń wszystkie
-                    </button>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="save-payment-button" id="savePaymentButton" onclick="savePayment()" style="display: none;">
+                            Zapisz płatność
+                        </button>
+                        <button class="remove-all-button" id="removeAllButton" onclick="removeAllBadania()" style="display: none;">
+                            Usuń wszystkie
+                        </button>
+                    </div>
                 </div>
                 <div class="selected-table-wrapper">
                     <table class="results-table" id="selectedTable">
@@ -1029,10 +1061,12 @@
         function updateSelectedList() {
             const tbody = document.getElementById('selectedTableBody');
             const removeAllButton = document.getElementById('removeAllButton');
+            const savePaymentButton = document.getElementById('savePaymentButton');
             
             if (selectedBadania.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="empty-message">Brak wybranych badań</td></tr>';
                 removeAllButton.style.display = 'none';
+                savePaymentButton.style.display = 'none';
                 return;
             }
 
@@ -1049,8 +1083,9 @@
                 </tr>
             `).join('');
             
-            // Pokaż przycisk "Usuń wszystkie" jeśli są wybrane badania
+            // Pokaż przyciski jeśli są wybrane badania
             removeAllButton.style.display = 'inline-block';
+            savePaymentButton.style.display = 'inline-block';
         }
 
         // Aktualizuj sumę
@@ -1064,6 +1099,65 @@
             return price.toFixed(2).replace('.', ',');
         }
 
+        // Zapisz płatność
+        window.savePayment = async function() {
+            if (selectedBadania.length === 0) {
+                alert('Brak badań do zapisania');
+                return;
+            }
+
+            // Oblicz sumę
+            const suma = selectedBadania.reduce((sum, badanie) => sum + badanie.kwota, 0);
+            
+            // Pobierz kody badań oddzielone znakiem |
+            const kody = selectedBadania.map(b => b.kod).join('|');
+            
+            // Generuj UID (użyj timestamp + losowy string)
+            const uid = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+            
+            // Pobierz datę i godzinę w formacie polskim
+            const now = new Date();
+            const dateStr = now.toLocaleString('pl-PL', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+
+            try {
+                const response = await fetch(`${API_BASE}/api/platnosci/save`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        uid: uid,
+                        data: dateStr,
+                        badania: kody,
+                        kwota: suma,
+                        uwagi: ''
+                    })
+                });
+
+                if (response.ok) {
+                    alert('Płatność została zapisana pomyślnie!');
+                    // Wyczyść tabelę wybranych badań
+                    selectedBadania = [];
+                    updateSelectedList();
+                    updateSuma();
+                    // Odśwież listę wszystkich badań
+                    displayAllBadania();
+                } else {
+                    const error = await response.json();
+                    alert('Błąd podczas zapisu płatności: ' + (error.detail || 'Nieznany błąd'));
+                }
+            } catch (error) {
+                alert('Błąd podczas zapisu płatności: ' + error.message);
+            }
+        }
+
         // Funkcje do edycji danych
         let editData = [];
 
@@ -1073,6 +1167,17 @@
             const modalContent = document.querySelector('.modal-content');
             if (modalContent) {
                 modalContent.style.height = '90vh';
+            }
+            // Wyczyść dane i tabelę przed załadowaniem nowych
+            editData = [];
+            const tbody = document.getElementById('editTableBody');
+            if (tbody) {
+                tbody.innerHTML = '';
+            }
+            const errorDiv = document.getElementById('editError');
+            if (errorDiv) {
+                errorDiv.style.display = 'none';
+                errorDiv.textContent = '';
             }
             loadEditData();
         }

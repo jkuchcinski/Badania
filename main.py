@@ -37,6 +37,8 @@ async def validation_exception_handler(request, exc):
 BUCKET_NAME = "hipokrates"
 CSV_FILE_NAME = "badania.csv"
 CSV_FILE = "badania.csv"  # Dla lokalnego fallback
+PLATNOSCI_FILE_NAME = "platnosci.csv"
+PLATNOSCI_FILE = "platnosci.csv"  # Dla lokalnego fallback
 
 def get_storage_client():
     """Zwraca klienta Google Cloud Storage lub None jeśli nie jest dostępny"""
@@ -288,6 +290,101 @@ async def save_badania(data: BadaniaUpdate):
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Błąd walidacji: {str(e)}")
+
+class PlatnoscCreate(BaseModel):
+    uid: str
+    data: str
+    badania: str
+    kwota: float
+    uwagi: str = ""
+
+def load_platnosci() -> List[Dict]:
+    """Wczytuje dane z pliku platnosci.csv z Google Cloud Storage lub lokalnie"""
+    csv_content = None
+    
+    # Próbuj pobrać z Google Cloud Storage
+    storage_client = get_storage_client()
+    if storage_client:
+        try:
+            bucket = storage_client.bucket(BUCKET_NAME)
+            blob = bucket.blob(PLATNOSCI_FILE_NAME)
+            csv_content = blob.download_as_text(encoding='utf-8')
+        except Exception as e:
+            print(f"Błąd podczas pobierania platnosci.csv z Cloud Storage: {e}")
+            # Fallback do lokalnego pliku
+    
+    # Jeśli nie udało się pobrać z Cloud Storage, spróbuj lokalnie
+    if csv_content is None:
+        if os.path.exists(PLATNOSCI_FILE):
+            with open(PLATNOSCI_FILE, 'r', encoding='utf-8') as f:
+                csv_content = f.read()
+        else:
+            return []
+    
+    # Parsuj CSV
+    csv_io = io.StringIO(csv_content)
+    reader = csv.DictReader(csv_io, delimiter=';')
+    return list(reader)
+
+@app.post("/api/platnosci/save")
+async def save_platnosc(data: PlatnoscCreate):
+    """Zapisuje płatność do pliku platnosci.csv w Cloud Storage lub lokalnie"""
+    try:
+        # Wczytaj istniejące płatności
+        existing_platnosci = load_platnosci()
+        
+        # Dodaj nową płatność
+        new_row = {
+            'UID': data.uid,
+            'DATA': data.data,
+            'BADANIA': data.badania,
+            'KWOTA': str(data.kwota).replace('.', ','),
+            'UWAGI': data.uwagi
+        }
+        existing_platnosci.append(new_row)
+        
+        # Przygotuj dane do zapisu
+        output = io.StringIO()
+        writer = csv.writer(output, delimiter=';')
+        
+        # Nagłówek
+        writer.writerow(['UID', 'DATA', 'BADANIA', 'KWOTA', 'UWAGI'])
+        
+        # Wiersze danych
+        for row in existing_platnosci:
+            writer.writerow([
+                row.get('UID', ''),
+                row.get('DATA', ''),
+                row.get('BADANIA', ''),
+                row.get('KWOTA', ''),
+                row.get('UWAGI', '')
+            ])
+        
+        csv_content = output.getvalue()
+        
+        # Próbuj zapisać do Cloud Storage
+        storage_client = get_storage_client()
+        if storage_client:
+            try:
+                bucket = storage_client.bucket(BUCKET_NAME)
+                blob = bucket.blob(PLATNOSCI_FILE_NAME)
+                blob.upload_from_string(csv_content, content_type='text/csv')
+                return {"success": True, "message": "Płatność została zapisana do Cloud Storage"}
+            except Exception as e:
+                print(f"Błąd podczas zapisu do Cloud Storage: {e}")
+                # Fallback do lokalnego zapisu
+        
+        # Jeśli Cloud Storage nie jest dostępny lub wystąpił błąd, zapisz lokalnie
+        try:
+            with open(PLATNOSCI_FILE, 'w', encoding='utf-8') as f:
+                f.write(csv_content)
+            return {"success": True, "message": "Płatność została zapisana lokalnie"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Błąd podczas zapisu do pliku lokalnego: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Błąd podczas zapisu płatności: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
