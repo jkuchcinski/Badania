@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Badań Lekarskich</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .login-container h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .login-form input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .login-form input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .login-form button {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .login-form button:hover {
+            background: #5568d3;
+        }
+
+        .error-message {
+            color: red;
+            text-align: center;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .app-container {
+            display: none;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .app-container.active {
+            display: block;
+        }
+
+        .main-content {
+            display: flex;
+            gap: 20px;
+            height: calc(100vh - 40px);
+        }
+
+        .left-panel, .right-panel {
+            flex: 1;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .right-panel {
+            position: relative;
+        }
+
+        .panel-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .edit-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .edit-button:hover {
+            background: #5568d3;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 900px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 15px;
+        }
+
+        .modal-header-buttons {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #333;
+        }
+
+        .close-button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .close-button:hover {
+            background: #c82333;
+        }
+
+        .edit-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            table-layout: fixed;
+        }
+
+        .edit-table th,
+        .edit-table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        .edit-table th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Szerokości kolumn */
+        .edit-table th:nth-child(1),
+        .edit-table td:nth-child(1) {
+            width: 70px; /* KOD - szerokość 3 znaków + 10px */
+        }
+
+        /* Kolumna "Nazwa badania" (2) zajmuje resztę miejsca automatycznie */
+
+        .edit-table th:nth-child(3),
+        .edit-table td:nth-child(3) {
+            width: 120px; /* Kwota - dwa razy mniejsza */
+        }
+
+        .edit-table th:nth-child(4),
+        .edit-table td:nth-child(4) {
+            width: 120px; /* Kwota 2 - dwa razy mniejsza */
+        }
+
+        .edit-table th:nth-child(5),
+        .edit-table td:nth-child(5) {
+            width: 80px; /* Akcja - stała szerokość */
+        }
+
+        .edit-table input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .edit-table input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .edit-table input.error {
+            border-color: #dc3545;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-actions button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .add-row-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .add-row-button:hover {
+            background: #218838;
+        }
+
+        .save-button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .save-button:hover {
+            background: #5568d3;
+        }
+
+        .delete-row-button {
+            background: #dc3545;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .delete-row-button:hover {
+            background: #c82333;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+
+        .search-container {
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .results-table th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+
+        .sortable-header {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            padding-right: 25px;
+        }
+
+        /* Rozszerz kolumnę KOD, aby ikona sortowania nie zachodziła na tekst */
+        #allBadaniaTable th:nth-child(2),
+        #allBadaniaTable td:nth-child(2) {
+            min-width: 80px;
+            padding-right: 30px;
+        }
+
+        .sortable-header:hover {
+            background: #5568d3;
+        }
+
+        .sortable-header::after {
+            content: '';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            opacity: 0.5;
+        }
+
+        .sortable-header.sort-asc::after {
+            border-bottom: 8px solid white;
+            border-top: none;
+            opacity: 1;
+        }
+
+        .sortable-header.sort-desc::after {
+            border-top: 8px solid white;
+            border-bottom: none;
+            opacity: 1;
+        }
+
+        /* Wyrównanie KOD do prawej - 2. kolumna w tabelach (wszystkie badania, wyniki wyszukiwania) */
+        #allBadaniaTable th:nth-child(2),
+        #allBadaniaTable td:nth-child(2),
+        #resultsTable th:nth-child(2),
+        #resultsTable td:nth-child(2) {
+            text-align: right;
+        }
+
+        /* Wyrównanie KWOTA do prawej - 3. kolumna we wszystkich tabelach */
+        .results-table th:nth-child(3),
+        .results-table td:nth-child(3) {
+            text-align: right;
+        }
+
+        /* Wyrównanie KOD do prawej - 1. kolumna w tabeli wybranych */
+        #selectedTable th:nth-child(1),
+        #selectedTable td:nth-child(1) {
+            text-align: right;
+        }
+
+        .results-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .add-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+            width: 80px;
+            min-width: 80px;
+        }
+
+        .add-button:hover {
+            background: #218838;
+        }
+
+        .add-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+
+
+        .remove-button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .remove-button:hover {
+            background: #c82333;
+        }
+
+        .selected-table-wrapper {
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .selected-table-wrapper table {
+            flex-shrink: 0;
+        }
+
+        .suma-wrapper {
+            margin-top: auto;
+            padding-top: 20px;
+        }
+
+        .remove-all-container {
+            margin: 15px 0 0 0;
+            text-align: right;
+        }
+
+        .remove-all-button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        .remove-all-button:hover {
+            background: #c82333;
+        }
+
+        .suma-container {
+            background: #667eea;
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .suma-label {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .suma-value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .empty-message {
+            text-align: center;
+            color: #999;
+            padding: 40px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <!-- Ekran logowania -->
+    <div class="login-container" id="loginContainer">
+        <h1>System Badań Lekarskich</h1>
+        <form class="login-form" id="loginForm">
+            <input type="password" id="passwordInput" placeholder="Wprowadź hasło" required>
+            <button type="submit">Zaloguj</button>
+            <div class="error-message" id="errorMessage">Nieprawidłowe hasło</div>
+        </form>
+    </div>
+
+    <!-- Główna aplikacja -->
+    <div class="app-container" id="appContainer">
+        <div class="main-content">
+            <!-- Lewy panel - wszystkie badania z filtrem -->
+            <div class="left-panel">
+                <div class="panel-title">
+                    <span>Wszystkie badania</span>
+                    <button class="edit-button" onclick="openEditModal()">Edytuj dane</button>
+                </div>
+                <div class="search-container">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Filtruj badania po nazwie...">
+                </div>
+                <table class="results-table" id="allBadaniaTable">
+                    <thead>
+                        <tr>
+                            <th class="sortable-header sort-asc" onclick="sortTable('nazwa')" id="sortNazwa">Nazwa badania</th>
+                            <th class="sortable-header" onclick="sortTable('kod')" id="sortKod">Kod</th>
+                            <th>Kwota</th>
+                            <th>Akcja</th>
+                        </tr>
+                    </thead>
+                    <tbody id="allBadaniaTableBody">
+                        <tr>
+                            <td colspan="4" class="empty-message">Ładowanie...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Prawy panel - wybrane badania i suma -->
+            <div class="right-panel">
+                <div class="panel-title">Wybrane badania</div>
+                <div class="selected-table-wrapper">
+                    <table class="results-table" id="selectedTable">
+                        <thead>
+                            <tr>
+                                <th>Kod</th>
+                                <th>Nazwa badania</th>
+                                <th>Kwota</th>
+                                <th>Akcja</th>
+                            </tr>
+                        </thead>
+                        <tbody id="selectedTableBody">
+                            <tr>
+                                <td colspan="4" class="empty-message">Brak wybranych badań</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="remove-all-container">
+                        <button class="remove-all-button" id="removeAllButton" onclick="removeAllBadania()" style="display: none;">
+                            Usuń wszystkie
+                        </button>
+                    </div>
+                </div>
+                <div class="suma-wrapper">
+                    <div class="suma-container">
+                        <div class="suma-label">Suma wszystkich badań:</div>
+                        <div class="suma-value" id="sumaValue">0,00 zł</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal do edycji danych -->
+    <div class="modal-overlay" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edytuj dane badań</h2>
+                <div class="modal-header-buttons">
+                    <button class="add-row-button" onclick="addEditRow()">Dodaj wiersz</button>
+                    <button class="save-button" onclick="saveEditData()">Zapisz</button>
+                    <button class="close-button" onclick="closeEditModal()">Zamknij</button>
+                </div>
+            </div>
+            <div id="editTableContainer">
+                <table class="edit-table" id="editTable">
+                    <thead>
+                        <tr>
+                            <th>KOD</th>
+                            <th>Nazwa badania</th>
+                            <th>Kwota</th>
+                            <th>Kwota 2</th>
+                            <th>Akcja</th>
+                        </tr>
+                    </thead>
+                    <tbody id="editTableBody">
+                        <!-- Wiersze będą dodane dynamicznie -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="editError" style="color: #dc3545; margin-top: 10px; display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let selectedBadania = [];
+        let allBadania = [];
+        let filteredBadania = [];
+        let currentSort = { column: 'nazwa', direction: 'asc' };
+
+        // Logowanie
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('passwordInput').value;
+            const errorMessage = document.getElementById('errorMessage');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ password })
+                });
+
+                if (response.ok) {
+                    document.getElementById('loginContainer').style.display = 'none';
+                    document.getElementById('appContainer').classList.add('active');
+                    loadAllBadania();
+                } else {
+                    errorMessage.style.display = 'block';
+                }
+            } catch (error) {
+                errorMessage.style.display = 'block';
+            }
+        });
+
+        // Wczytaj wszystkie badania
+        async function loadAllBadania() {
+            try {
+                const response = await fetch(`${API_BASE}/api/badania`);
+                const data = await response.json();
+                allBadania = data.badania;
+                filteredBadania = allBadania;
+                displayAllBadania();
+            } catch (error) {
+                console.error('Błąd podczas ładowania badań:', error);
+            }
+        }
+
+        // Wyświetl wszystkie badania (lub przefiltrowane)
+        function displayAllBadania() {
+            const tbody = document.getElementById('allBadaniaTableBody');
+            let badaniaToDisplay = filteredBadania.length > 0 ? [...filteredBadania] : [...allBadania];
+            
+            // Sortuj badania jeśli jest ustawione sortowanie
+            if (currentSort.column) {
+                badaniaToDisplay.sort((a, b) => {
+                    let aVal, bVal;
+                    if (currentSort.column === 'nazwa') {
+                        aVal = a.nazwa.toLowerCase();
+                        bVal = b.nazwa.toLowerCase();
+                    } else if (currentSort.column === 'kod') {
+                        // Konwertuj kod na liczbę jeśli to możliwe, w przeciwnym razie porównuj jako string
+                        aVal = isNaN(a.kod) ? a.kod.toLowerCase() : parseInt(a.kod);
+                        bVal = isNaN(b.kod) ? b.kod.toLowerCase() : parseInt(b.kod);
+                    }
+                    
+                    if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                    if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                    return 0;
+                });
+            }
+            
+            if (badaniaToDisplay.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-message">Brak badań</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = badaniaToDisplay.map((badanie, index) => {
+                const isSelected = selectedBadania.some(sb => sb.kod === badanie.kod);
+                // Znajdź oryginalny indeks w allBadania dla funkcji addBadanieFromAll
+                const originalIndex = allBadania.findIndex(b => b.kod === badanie.kod);
+                return `
+                    <tr>
+                        <td>${badanie.nazwa}</td>
+                        <td>${badanie.kod}</td>
+                        <td>${formatPrice(badanie.kwota)} zł</td>
+                        <td>
+                            <button class="add-button" 
+                                    onclick="addBadanieFromAll(${originalIndex})" 
+                                    ${isSelected ? 'disabled' : ''}>
+                                ${isSelected ? 'Dodano' : 'Dodaj'}
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Sortuj tabelę
+        window.sortTable = function(column) {
+            // Jeśli kliknięto tę samą kolumnę, zmień kierunek sortowania
+            if (currentSort.column === column) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = column;
+                currentSort.direction = 'asc';
+            }
+            
+            // Zaktualizuj wizualne wskaźniki sortowania
+            document.querySelectorAll('.sortable-header').forEach(header => {
+                header.classList.remove('sort-asc', 'sort-desc');
+            });
+            
+            const headerId = column === 'nazwa' ? 'sortNazwa' : 'sortKod';
+            const header = document.getElementById(headerId);
+            if (header) {
+                header.classList.add(currentSort.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+            }
+            
+            // Odśwież wyświetlanie
+            displayAllBadania();
+        };
+
+        // Filtrowanie badań
+        let searchTimeout;
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim().toLowerCase();
+
+            searchTimeout = setTimeout(() => {
+                if (query.length === 0) {
+                    filteredBadania = allBadania;
+                } else {
+                    filteredBadania = allBadania.filter(badanie => 
+                        badanie.nazwa.toLowerCase().includes(query)
+                    );
+                }
+                displayAllBadania();
+            }, 300);
+        });
+
+
+        // Dodaj badanie do listy z tabeli wszystkich badań
+        window.addBadanieFromAll = function(index) {
+            const badanie = allBadania[index];
+            
+            if (badanie && !selectedBadania.some(sb => sb.kod === badanie.kod)) {
+                selectedBadania.push(badanie);
+                updateSelectedList();
+                updateSuma();
+                // Odśwież listę wszystkich badań, aby pokazać stan "Dodano"
+                displayAllBadania();
+            }
+        };
+
+        // Usuń badanie z listy
+        window.removeBadanie = function(kod) {
+            selectedBadania = selectedBadania.filter(b => b.kod !== kod);
+            updateSelectedList();
+            updateSuma();
+            // Odśwież listę wszystkich badań
+            displayAllBadania();
+        };
+
+        // Usuń wszystkie badania z listy
+        window.removeAllBadania = function() {
+            if (confirm('Czy na pewno chcesz usunąć wszystkie wybrane badania?')) {
+                selectedBadania = [];
+                updateSelectedList();
+                updateSuma();
+                // Odśwież listę wszystkich badań
+                displayAllBadania();
+            }
+        };
+
+        // Aktualizuj listę wybranych badań
+        function updateSelectedList() {
+            const tbody = document.getElementById('selectedTableBody');
+            const removeAllButton = document.getElementById('removeAllButton');
+            
+            if (selectedBadania.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-message">Brak wybranych badań</td></tr>';
+                removeAllButton.style.display = 'none';
+                return;
+            }
+
+            tbody.innerHTML = selectedBadania.map(badanie => `
+                <tr>
+                    <td>${badanie.kod}</td>
+                    <td>${badanie.nazwa}</td>
+                    <td>${formatPrice(badanie.kwota)} zł</td>
+                    <td>
+                        <button class="remove-button" onclick="removeBadanie('${badanie.kod}')">
+                            Usuń
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            // Pokaż przycisk "Usuń wszystkie" jeśli są wybrane badania
+            removeAllButton.style.display = 'inline-block';
+        }
+
+        // Aktualizuj sumę
+        function updateSuma() {
+            const suma = selectedBadania.reduce((sum, badanie) => sum + badanie.kwota, 0);
+            document.getElementById('sumaValue').textContent = formatPrice(suma) + ' zł';
+        }
+
+        // Formatuj cenę
+        function formatPrice(price) {
+            return price.toFixed(2).replace('.', ',');
+        }
+
+        // Funkcje do edycji danych
+        let editData = [];
+
+        function openEditModal() {
+            document.getElementById('editModal').classList.add('active');
+            loadEditData();
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
+            document.getElementById('editError').style.display = 'none';
+        }
+
+        async function loadEditData() {
+            try {
+                const response = await fetch(`${API_BASE}/api/badania/edit`);
+                const data = await response.json();
+                editData = data.badania;
+                renderEditTable();
+            } catch (error) {
+                showEditError('Błąd podczas ładowania danych: ' + error.message);
+            }
+        }
+
+        function renderEditTable() {
+            const tbody = document.getElementById('editTableBody');
+            tbody.innerHTML = editData.map((row, index) => `
+                <tr data-index="${index}">
+                    <td>
+                        <input type="text" 
+                               value="${row.KOD || ''}" 
+                               onchange="updateEditData(${index}, 'KOD', this.value)"
+                               class="kod-input"
+                               data-index="${index}">
+                    </td>
+                    <td>
+                        <input type="text" 
+                               value="${row.NAZWA_BADANIA || ''}" 
+                               onchange="updateEditData(${index}, 'NAZWA_BADANIA', this.value)"
+                               data-index="${index}">
+                    </td>
+                    <td>
+                        <input type="text" 
+                               value="${row.KWOTA || ''}" 
+                               onchange="updateEditData(${index}, 'KWOTA', this.value)"
+                               data-index="${index}">
+                    </td>
+                    <td>
+                        <input type="text" 
+                               value="${row.KWOTA_2 || ''}" 
+                               onchange="updateEditData(${index}, 'KWOTA_2', this.value)"
+                               data-index="${index}">
+                    </td>
+                    <td>
+                        <button class="delete-row-button" onclick="deleteEditRow(${index})">Usuń</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updateEditData(index, field, value) {
+            if (editData[index]) {
+                editData[index][field] = value;
+                validateRow(index);
+            }
+        }
+
+        function addEditRow() {
+            editData.push({
+                KOD: '',
+                NAZWA_BADANIA: '',
+                KWOTA: '',
+                KWOTA_2: ''
+            });
+            renderEditTable();
+        }
+
+        function deleteEditRow(index) {
+            if (confirm('Czy na pewno chcesz usunąć ten wiersz?')) {
+                editData.splice(index, 1);
+                renderEditTable();
+            }
+        }
+
+        function validateRow(index) {
+            const row = editData[index];
+            const rowElement = document.querySelector(`tr[data-index="${index}"]`);
+            const inputs = rowElement.querySelectorAll('input');
+            
+            // Reset błędów
+            inputs.forEach(input => input.classList.remove('error'));
+            
+            // Walidacja KOD
+            const kodInput = rowElement.querySelector('.kod-input');
+            if (kodInput) {
+                const kod = kodInput.value.trim();
+                if (kod) {
+                    if (isNaN(kod) || parseInt(kod) < 0) {
+                        kodInput.classList.add('error');
+                    } else {
+                        // Sprawdź unikalność
+                        const duplicates = editData.filter((r, i) => i !== index && r.KOD === kod);
+                        if (duplicates.length > 0) {
+                            kodInput.classList.add('error');
+                        }
+                    }
+                }
+            }
+            
+            // Walidacja Nazwa badania
+            const nazwaInput = inputs[1];
+            if (nazwaInput && nazwaInput.value.includes('\n')) {
+                nazwaInput.classList.add('error');
+            }
+            
+            // Walidacja Kwota
+            const kwotaInput = inputs[2];
+            if (kwotaInput && kwotaInput.value.trim()) {
+                const kwotaStr = kwotaInput.value.trim().replace(',', '.');
+                const kwota = parseFloat(kwotaStr);
+                if (isNaN(kwota) || kwota < 0 || kwota > 10000) {
+                    kwotaInput.classList.add('error');
+                }
+            }
+        }
+
+        async function saveEditData() {
+            // Walidacja wszystkich wierszy
+            let hasErrors = false;
+            editData.forEach((row, index) => {
+                validateRow(index);
+                const rowElement = document.querySelector(`tr[data-index="${index}"]`);
+                if (rowElement && rowElement.querySelectorAll('input.error').length > 0) {
+                    hasErrors = true;
+                }
+            });
+
+            if (hasErrors) {
+                showEditError('Proszę poprawić błędy w danych przed zapisem');
+                return;
+            }
+
+            // Walidacja unikalności KOD
+            const kody = editData.map(r => r.KOD).filter(k => k);
+            if (kody.length !== new Set(kody).size) {
+                showEditError('KOD musi być unikalny dla każdego badania');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/badania/save`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ badania: editData })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    alert('Dane zostały zapisane pomyślnie!');
+                    closeEditModal();
+                    // Odśwież dane
+                    loadAllBadania();
+                } else {
+                    let errorMessage = 'Błąd podczas zapisu';
+                    try {
+                        const error = await response.json();
+                        errorMessage = error.detail || errorMessage;
+                        // Jeśli to błąd walidacji Pydantic, pokaż szczegóły
+                        if (error.detail && Array.isArray(error.detail)) {
+                            const validationErrors = error.detail.map(e => {
+                                const field = e.loc ? e.loc.join('.') : '';
+                                return `${field}: ${e.msg}`;
+                            }).join('\n');
+                            errorMessage = 'Błędy walidacji:\n' + validationErrors;
+                        }
+                    } catch (e) {
+                        errorMessage = `Błąd ${response.status}: ${response.statusText}`;
+                    }
+                    showEditError(errorMessage);
+                }
+            } catch (error) {
+                showEditError('Błąd podczas zapisu: ' + error.message);
+            }
+        }
+
+        function showEditError(message) {
+            const errorDiv = document.getElementById('editError');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // Zamknij modal przy kliknięciu poza nim
+        document.getElementById('editModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeEditModal();
+            }
+        });
+    </script>
+</body>
+</html>
+
