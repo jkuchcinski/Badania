@@ -8,6 +8,7 @@ import csv
 import os
 import io
 from typing import List, Dict, Optional
+from datetime import datetime
 
 app = FastAPI()
 
@@ -385,6 +386,49 @@ async def save_platnosc(data: PlatnoscCreate):
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Błąd podczas zapisu płatności: {str(e)}")
+
+@app.get("/api/platnosci/stats")
+async def get_daily_stats():
+    """Zwraca statystyki transakcji z dzisiejszego dnia"""
+    try:
+        # Wczytaj wszystkie płatności
+        platnosci = load_platnosci()
+        
+        # Pobierz dzisiejszą datę w formacie polskim (DD.MM.YYYY)
+        today = datetime.now()
+        today_str = today.strftime('%d.%m.%Y')
+        
+        # Filtruj transakcje z dzisiejszego dnia
+        today_platnosci = []
+        for platnosc in platnosci:
+            data_str = platnosc.get('DATA', '')
+            # Sprawdź czy data zawiera dzisiejszą datę (może być z godziną)
+            if today_str in data_str:
+                today_platnosci.append(platnosc)
+        
+        # Oblicz sumę i znajdź najnowszą transakcję
+        suma = 0.0
+        latest_date = None
+        
+        for platnosc in today_platnosci:
+            kwota_str = platnosc.get('KWOTA', '0').replace(',', '.')
+            try:
+                suma += float(kwota_str)
+            except ValueError:
+                pass
+            
+            # Znajdź najnowszą datę
+            data_str = platnosc.get('DATA', '')
+            if data_str and (latest_date is None or data_str > latest_date):
+                latest_date = data_str
+        
+        return {
+            "count": len(today_platnosci),
+            "sum": suma,
+            "latest_date": latest_date or ""
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Błąd podczas pobierania statystyk: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

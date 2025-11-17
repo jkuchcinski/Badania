@@ -749,6 +749,52 @@
             font-weight: 500;
         }
 
+        .stats-wrapper {
+            margin-top: 16px;
+            padding: 0 24px 24px 24px;
+            flex-shrink: 0;
+            background: white;
+        }
+
+        .stats-container {
+            background: #7b1fa2;
+            color: white;
+            padding: 24px;
+            border-radius: 4px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .stats-label {
+            font-size: 16px;
+            margin-bottom: 16px;
+            font-weight: 400;
+            opacity: 0.9;
+        }
+
+        .stats-content {
+            display: flex;
+            justify-content: space-around;
+            gap: 20px;
+        }
+
+        .stats-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .stats-item-label {
+            font-size: 14px;
+            opacity: 0.8;
+            font-weight: 400;
+        }
+
+        .stats-item-value {
+            font-size: 24px;
+            font-weight: 500;
+        }
+
         .empty-message {
             text-align: center;
             color: #757575;
@@ -832,8 +878,23 @@
                 </div>
                 <div class="suma-wrapper">
                     <div class="suma-container">
-                        <div class="suma-label">Suma wszystkich badań:</div>
+                        <div class="suma-label">Suma wybranych badań:</div>
                         <div class="suma-value" id="sumaValue">0,00 zł</div>
+                    </div>
+                </div>
+                <div class="stats-wrapper">
+                    <div class="stats-container">
+                        <div class="stats-label">Transakcje z dnia:</div>
+                        <div class="stats-content">
+                            <div class="stats-item">
+                                <span class="stats-item-label">Ilość:</span>
+                                <span class="stats-item-value" id="statsCount">-</span>
+                            </div>
+                            <div class="stats-item">
+                                <span class="stats-item-label">Suma:</span>
+                                <span class="stats-item-value" id="statsSum">-</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -900,6 +961,7 @@
                     document.getElementById('loginContainer').style.display = 'none';
                     document.getElementById('appContainer').classList.add('active');
                     loadAllBadania();
+                    loadDailyStats(); // Załaduj statystyki asynchronicznie
                 } else {
                     errorMessage.style.display = 'block';
                 }
@@ -918,6 +980,41 @@
                 displayAllBadania();
             } catch (error) {
                 console.error('Błąd podczas ładowania badań:', error);
+            }
+        }
+
+        // Wczytaj statystyki dzienne asynchronicznie
+        async function loadDailyStats() {
+            try {
+                const response = await fetch(`${API_BASE}/api/platnosci/stats`);
+                const data = await response.json();
+                
+                // Zaktualizuj label z datą i czasem z ostatniej transakcji
+                const statsLabel = document.querySelector('.stats-label');
+                if (statsLabel) {
+                    if (data.latest_date) {
+                        statsLabel.textContent = `Transakcje z dnia: ${data.latest_date}`;
+                    } else {
+                        // Jeśli nie ma transakcji, pokaż dzisiejszą datę
+                        const now = new Date();
+                        const dateTimeStr = now.toLocaleString('pl-PL', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                        });
+                        statsLabel.textContent = `Transakcje z dnia: ${dateTimeStr}`;
+                    }
+                }
+                
+                document.getElementById('statsCount').textContent = data.count || 0;
+                document.getElementById('statsSum').textContent = formatPrice(data.sum || 0) + ' zł';
+            } catch (error) {
+                console.error('Błąd podczas ładowania statystyk:', error);
+                document.getElementById('statsCount').textContent = '-';
+                document.getElementById('statsSum').textContent = '-';
             }
         }
 
@@ -1149,6 +1246,8 @@
                     updateSuma();
                     // Odśwież listę wszystkich badań
                     displayAllBadania();
+                    // Odśwież statystyki dzienne
+                    loadDailyStats();
                 } else {
                     const error = await response.json();
                     alert('Błąd podczas zapisu płatności: ' + (error.detail || 'Nieznany błąd'));
