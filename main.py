@@ -405,9 +405,13 @@ async def get_daily_stats():
         # Filtruj transakcje z dzisiejszego dnia
         today_platnosci = []
         for platnosc in platnosci:
-            data_str = platnosc.get('DATA', '')
-            # Sprawdź czy data zawiera dzisiejszą datę (może być z godziną)
-            if today_str in data_str:
+            data_str = platnosc.get('DATA', '').strip()
+            if not data_str:
+                continue
+            
+            # Sprawdź czy data zaczyna się od dzisiejszej daty (może być z godziną)
+            # Format: "DD.MM.YYYY, HH:MM:SS" lub "DD.MM.YYYY HH:MM:SS"
+            if data_str.startswith(today_str):
                 today_platnosci.append(platnosc)
         
         # Oblicz sumę i znajdź najnowszą transakcję
@@ -422,9 +426,13 @@ async def get_daily_stats():
                 pass
             
             # Znajdź najnowszą datę
-            data_str = platnosc.get('DATA', '')
+            data_str = platnosc.get('DATA', '').strip()
             if data_str and (latest_date is None or data_str > latest_date):
                 latest_date = data_str
+        
+        # Jeśli nie ma transakcji z dzisiaj, latest_date powinno być puste
+        if not today_platnosci:
+            latest_date = ""
         
         return {
             "count": len(today_platnosci),
