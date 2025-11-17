@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Kopiuj pliki aplikacji
 COPY main.py .
 COPY index.html .
+COPY decent-code-1024x0.png .
 # badania.csv jest wczytywany z Google Cloud Storage bucket "hipokrates"
 # COPY badania.csv .  # Opcjonalnie dla lokalnego fallback
 
