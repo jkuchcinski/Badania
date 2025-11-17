@@ -296,6 +296,22 @@
             display: none;
         }
 
+        .progress-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.1);
+            z-index: 9999;
+            pointer-events: all;
+            cursor: wait;
+        }
+
+        .progress-overlay.hidden {
+            display: none;
+        }
+
         .edit-table {
             width: 100%;
             border-collapse: separate;
@@ -825,6 +841,7 @@
 
     <!-- Główna aplikacja -->
     <div class="app-container" id="appContainer">
+        <div class="progress-overlay hidden" id="progressOverlay"></div>
         <div class="main-content">
             <!-- Lewy panel - wszystkie badania z filtrem -->
             <div class="left-panel">
@@ -1235,10 +1252,14 @@
             });
 
             const progressContainer = document.getElementById('paymentProgress');
+            const progressOverlay = document.getElementById('progressOverlay');
             try {
-                // Pokaż progress
+                // Pokaż progress i zablokuj interfejs
                 if (progressContainer) {
                     progressContainer.classList.remove('hidden');
+                }
+                if (progressOverlay) {
+                    progressOverlay.classList.remove('hidden');
                 }
                 
                 const response = await fetch(`${API_BASE}/api/platnosci/save`, {
@@ -1272,9 +1293,14 @@
             } catch (error) {
                 alert('Błąd podczas zapisu płatności: ' + error.message);
             } finally {
-                // Ukryj progress
+                // Ukryj progress i odblokuj interfejs
+                const progressContainer = document.getElementById('paymentProgress');
+                const progressOverlay = document.getElementById('progressOverlay');
                 if (progressContainer) {
                     progressContainer.classList.add('hidden');
+                }
+                if (progressOverlay) {
+                    progressOverlay.classList.add('hidden');
                 }
             }
         }
@@ -1310,10 +1336,14 @@
 
         async function loadEditData() {
             const progressContainer = document.getElementById('editProgress');
+            const progressOverlay = document.getElementById('progressOverlay');
             try {
-                // Pokaż progress
+                // Pokaż progress i zablokuj interfejs
                 if (progressContainer) {
                     progressContainer.classList.remove('hidden');
+                }
+                if (progressOverlay) {
+                    progressOverlay.classList.remove('hidden');
                 }
                 
                 const response = await fetch(`${API_BASE}/api/badania/edit`);
@@ -1323,9 +1353,14 @@
             } catch (error) {
                 showEditError('Błąd podczas ładowania danych: ' + error.message);
             } finally {
-                // Ukryj progress
+                // Ukryj progress i odblokuj interfejs
+                const progressContainer = document.getElementById('editProgress');
+                const progressOverlay = document.getElementById('progressOverlay');
                 if (progressContainer) {
                     progressContainer.classList.add('hidden');
+                }
+                if (progressOverlay) {
+                    progressOverlay.classList.add('hidden');
                 }
             }
         }
@@ -1474,10 +1509,14 @@
             }
 
             const progressContainer = document.getElementById('editProgress');
+            const progressOverlay = document.getElementById('progressOverlay');
             try {
-                // Pokaż progress
+                // Pokaż progress i zablokuj interfejs
                 if (progressContainer) {
                     progressContainer.classList.remove('hidden');
+                }
+                if (progressOverlay) {
+                    progressOverlay.classList.remove('hidden');
                 }
                 
                 const response = await fetch(`${API_BASE}/api/badania/save`, {
@@ -1515,9 +1554,14 @@
             } catch (error) {
                 showEditError('Błąd podczas zapisu: ' + error.message);
             } finally {
-                // Ukryj progress
+                // Ukryj progress i odblokuj interfejs
+                const progressContainer = document.getElementById('editProgress');
+                const progressOverlay = document.getElementById('progressOverlay');
                 if (progressContainer) {
                     progressContainer.classList.add('hidden');
+                }
+                if (progressOverlay) {
+                    progressOverlay.classList.add('hidden');
                 }
             }
         }
