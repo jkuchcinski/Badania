@@ -237,7 +237,7 @@ class BadaniaUpdate(BaseModel):
 
 @app.post("/api/badania/save")
 async def save_badania(data: BadaniaUpdate):
-    """Zapisuje badania do Cloud Storage"""
+    """Zapisuje badania do Cloud Storage lub lokalnie"""
     try:
         # Filtruj puste wiersze (bez nazwy badania)
         valid_badania = [row for row in data.badania if row.NAZWA_BADANIA and row.NAZWA_BADANIA.strip()]
@@ -265,18 +265,25 @@ async def save_badania(data: BadaniaUpdate):
         
         csv_content = output.getvalue()
         
-        # Zapisz do Cloud Storage
+        # Próbuj zapisać do Cloud Storage
         storage_client = get_storage_client()
-        if not storage_client:
-            raise HTTPException(status_code=500, detail="Google Cloud Storage nie jest dostępny")
+        if storage_client:
+            try:
+                bucket = storage_client.bucket(BUCKET_NAME)
+                blob = bucket.blob(CSV_FILE_NAME)
+                blob.upload_from_string(csv_content, content_type='text/csv')
+                return {"success": True, "message": "Dane zostały zapisane do Cloud Storage"}
+            except Exception as e:
+                print(f"Błąd podczas zapisu do Cloud Storage: {e}")
+                # Fallback do lokalnego zapisu
         
+        # Jeśli Cloud Storage nie jest dostępny lub wystąpił błąd, zapisz lokalnie
         try:
-            bucket = storage_client.bucket(BUCKET_NAME)
-            blob = bucket.blob(CSV_FILE_NAME)
-            blob.upload_from_string(csv_content, content_type='text/csv')
-            return {"success": True, "message": "Dane zostały zapisane"}
+            with open(CSV_FILE, 'w', encoding='utf-8') as f:
+                f.write(csv_content)
+            return {"success": True, "message": "Dane zostały zapisane lokalnie"}
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Błąd podczas zapisu: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Błąd podczas zapisu do pliku lokalnego: {str(e)}")
     except HTTPException:
         raise
     except Exception as e:
