@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Badań Lekarskich</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -12,62 +14,78 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Roboto', sans-serif;
+            background: #f5f5f5;
             min-height: 100vh;
             padding: 20px;
+            color: #212121;
         }
 
         .login-container {
             max-width: 400px;
             margin: 100px auto;
             background: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 48px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.1);
         }
 
         .login-container h1 {
             text-align: center;
-            color: #333;
-            margin-bottom: 30px;
+            color: #212121;
+            margin-bottom: 32px;
+            font-weight: 400;
+            font-size: 24px;
         }
 
         .login-form input {
             width: 100%;
-            padding: 12px;
-            margin-bottom: 20px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
+            padding: 16px;
+            margin-bottom: 24px;
+            border: none;
+            border-bottom: 2px solid #e0e0e0;
+            border-radius: 0;
             font-size: 16px;
+            background: transparent;
+            transition: border-color 0.3s;
         }
 
         .login-form input:focus {
             outline: none;
-            border-color: #667eea;
+            border-bottom-color: #1976d2;
         }
 
         .login-form button {
             width: 100%;
-            padding: 12px;
-            background: #667eea;
+            padding: 14px;
+            background: #1976d2;
             color: white;
             border: none;
-            border-radius: 5px;
-            font-size: 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
-            transition: background 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.3s, box-shadow 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .login-form button:hover {
-            background: #5568d3;
+            background: #1565c0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .login-form button:active {
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
 
         .error-message {
-            color: red;
+            color: #d32f2f;
             text-align: center;
-            margin-top: 10px;
+            margin-top: 16px;
             display: none;
+            font-size: 14px;
         }
 
         .app-container {
@@ -89,9 +107,9 @@
         .left-panel, .right-panel {
             flex: 1;
             background: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            border-radius: 4px;
+            padding: 24px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.1);
             overflow-y: auto;
             display: flex;
             flex-direction: column;
@@ -102,30 +120,39 @@
         }
 
         .panel-title {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            color: #333;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
+            font-size: 20px;
+            font-weight: 500;
+            margin-bottom: 24px;
+            color: #212121;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
         .edit-button {
-            background: #667eea;
+            background: #1976d2;
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 5px;
+            padding: 10px 24px;
+            border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
-            transition: background 0.3s;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.3s, box-shadow 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .edit-button:hover {
-            background: #5568d3;
+            background: #1565c0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .edit-button:active {
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
 
         /* Modal styles */
@@ -148,22 +175,22 @@
 
         .modal-content {
             background: white;
-            border-radius: 10px;
-            padding: 30px;
+            border-radius: 4px;
+            padding: 24px;
             max-width: 900px;
             width: 90%;
             max-height: 90vh;
             overflow-y: auto;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2), 0 16px 32px rgba(0,0,0,0.2);
         }
 
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 15px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 16px;
         }
 
         .modal-header-buttons {
@@ -174,21 +201,33 @@
 
         .modal-header h2 {
             margin: 0;
-            color: #333;
+            color: #212121;
+            font-weight: 400;
+            font-size: 24px;
         }
 
         .close-button {
-            background: #dc3545;
+            background: #d32f2f;
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 5px;
+            padding: 10px 24px;
+            border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.3s, box-shadow 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .close-button:hover {
-            background: #c82333;
+            background: #c62828;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .close-button:active {
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
 
         .edit-table {
@@ -206,9 +245,9 @@
         }
 
         .edit-table th {
-            background: #667eea;
+            background: #1976d2;
             color: white;
-            font-weight: bold;
+            font-weight: 500;
         }
 
         /* Szerokości kolumn */
@@ -236,20 +275,24 @@
 
         .edit-table input {
             width: 100%;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 12px;
+            border: none;
+            border-bottom: 1px solid #e0e0e0;
+            border-radius: 0;
             font-size: 14px;
             box-sizing: border-box;
+            background: transparent;
+            transition: border-color 0.3s;
         }
 
         .edit-table input:focus {
             outline: none;
-            border-color: #667eea;
+            border-bottom-color: #1976d2;
+            border-bottom-width: 2px;
         }
 
         .edit-table input.error {
-            border-color: #dc3545;
+            border-bottom-color: #d32f2f;
         }
 
         .modal-actions {
@@ -269,49 +312,79 @@
         }
 
         .add-row-button {
-            background: #28a745;
+            background: #388e3c;
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 5px;
+            padding: 10px 24px;
+            border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.3s, box-shadow 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .add-row-button:hover {
-            background: #218838;
+            background: #2e7d32;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .add-row-button:active {
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
 
         .save-button {
-            background: #667eea;
+            background: #1976d2;
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 5px;
+            padding: 10px 24px;
+            border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.3s, box-shadow 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .save-button:hover {
-            background: #5568d3;
+            background: #1565c0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .save-button:active {
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
 
         .delete-row-button {
-            background: #dc3545;
+            background: #d32f2f;
             color: white;
-            padding: 5px 10px;
+            padding: 8px 16px;
             border: none;
-            border-radius: 3px;
+            border-radius: 4px;
             cursor: pointer;
             font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.3s, box-shadow 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .delete-row-button:hover {
-            background: #c82333;
+            background: #c62828;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .delete-row-button:active {
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
 
         .error-message {
-            color: #dc3545;
+            color: #d32f2f;
             font-size: 12px;
             margin-top: 5px;
         }
@@ -323,16 +396,19 @@
 
         .search-input {
             width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
+            padding: 16px;
+            border: none;
+            border-bottom: 2px solid #e0e0e0;
+            border-radius: 0;
             font-size: 16px;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
+            background: transparent;
+            transition: border-color 0.3s;
         }
 
         .search-input:focus {
             outline: none;
-            border-color: #667eea;
+            border-bottom-color: #1976d2;
         }
 
         .results-table {
@@ -349,9 +425,9 @@
         }
 
         .results-table th {
-            background: #667eea;
+            background: #1976d2;
             color: white;
-            font-weight: bold;
+            font-weight: 500;
         }
 
         .sortable-header {
@@ -369,7 +445,7 @@
         }
 
         .sortable-header:hover {
-            background: #5568d3;
+            background: #1565c0;
         }
 
         .sortable-header::after {
@@ -418,44 +494,68 @@
         }
 
         .results-table tr:hover {
-            background: #f8f9fa;
+            background: #f5f5f5;
         }
 
         .add-button {
-            background: #28a745;
+            background: #388e3c;
             color: white;
             border: none;
             padding: 8px 16px;
-            border-radius: 5px;
+            border-radius: 4px;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: background 0.3s, box-shadow 0.3s;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            text-align: center;
+            white-space: nowrap;
             width: 80px;
             min-width: 80px;
+            max-width: 80px;
         }
 
         .add-button:hover {
-            background: #218838;
+            background: #2e7d32;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .add-button:active {
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
 
         .add-button:disabled {
-            background: #ccc;
+            background: #bdbdbd;
             cursor: not-allowed;
+            box-shadow: none;
         }
 
 
 
         .remove-button {
-            background: #dc3545;
+            background: #d32f2f;
             color: white;
             border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
+            padding: 8px 16px;
+            border-radius: 4px;
             cursor: pointer;
             font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.3s, box-shadow 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .remove-button:hover {
-            background: #c82333;
+            background: #c62828;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .remove-button:active {
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
 
         .selected-table-wrapper {
@@ -480,44 +580,56 @@
         }
 
         .remove-all-button {
-            background: #dc3545;
+            background: #d32f2f;
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
+            padding: 12px 24px;
+            border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
-            font-weight: bold;
-            transition: background 0.3s;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.3s, box-shadow 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
         .remove-all-button:hover {
-            background: #c82333;
+            background: #c62828;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .remove-all-button:active {
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
 
         .suma-container {
-            background: #667eea;
+            background: #1976d2;
             color: white;
-            padding: 20px;
-            border-radius: 5px;
+            padding: 24px;
+            border-radius: 4px;
             text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.1);
         }
 
         .suma-label {
-            font-size: 18px;
-            margin-bottom: 10px;
+            font-size: 16px;
+            margin-bottom: 12px;
+            font-weight: 400;
+            opacity: 0.9;
         }
 
         .suma-value {
-            font-size: 32px;
-            font-weight: bold;
+            font-size: 36px;
+            font-weight: 500;
         }
 
         .empty-message {
             text-align: center;
-            color: #999;
+            color: #757575;
             padding: 40px;
             font-style: italic;
+            font-weight: 300;
         }
     </style>
 </head>
