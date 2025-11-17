@@ -11,6 +11,7 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
         }
 
         body {
@@ -45,6 +46,7 @@
             border: none;
             border-bottom: 2px solid #e0e0e0;
             border-radius: 0;
+            font-family: 'Roboto', sans-serif;
             font-size: 16px;
             background: transparent;
             transition: border-color 0.3s;
@@ -113,6 +115,18 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+        }
+
+        .left-panel {
+            position: relative;
+        }
+        
+        #allBadaniaProgress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
         }
 
         .right-panel {
@@ -324,6 +338,8 @@
             padding: 12px;
             border-bottom: 1px solid #ddd;
             text-align: left;
+            font-family: 'Roboto', sans-serif;
+            font-size: 14px;
         }
         
         .edit-table tbody tr:last-child td {
@@ -342,6 +358,8 @@
             font-weight: 500;
             position: sticky;
             top: 0;
+            font-family: 'Roboto', sans-serif;
+            font-size: 14px;
         }
 
         /* Szerokości kolumn */
@@ -373,6 +391,7 @@
             border: none;
             border-bottom: 2px solid transparent;
             border-radius: 0;
+            font-family: 'Roboto', sans-serif;
             font-size: 14px;
             box-sizing: border-box;
             background: transparent;
@@ -505,6 +524,7 @@
             border: none;
             border-bottom: 2px solid #e0e0e0;
             border-radius: 0;
+            font-family: 'Roboto', sans-serif;
             font-size: 16px;
             margin-bottom: 24px;
             background: transparent;
@@ -533,6 +553,8 @@
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid #ddd;
+            font-family: 'Roboto', sans-serif;
+            font-size: 14px;
         }
 
         .results-table th {
@@ -541,6 +563,8 @@
             font-weight: 500;
             position: sticky;
             top: 0;
+            font-family: 'Roboto', sans-serif;
+            font-size: 14px;
         }
 
         .sortable-header {
@@ -728,6 +752,18 @@
             box-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
 
+        .save-payment-button:disabled {
+            background: #9e9e9e;
+            color: #e0e0e0;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .save-payment-button:disabled:hover {
+            background: #9e9e9e;
+            box-shadow: none;
+        }
+
         .remove-all-button {
             background: #d32f2f;
             color: white;
@@ -750,6 +786,18 @@
 
         .remove-all-button:active {
             box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .remove-all-button:disabled {
+            background: #9e9e9e;
+            color: #e0e0e0;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .remove-all-button:disabled:hover {
+            background: #9e9e9e;
+            box-shadow: none;
         }
 
         .suma-container {
@@ -845,6 +893,9 @@
         <div class="main-content">
             <!-- Lewy panel - wszystkie badania z filtrem -->
             <div class="left-panel">
+                <div class="progress-container hidden" id="allBadaniaProgress">
+                    <div class="progress-bar"></div>
+                </div>
                 <div class="panel-title">
                     <span>Wszystkie badania</span>
                     <button class="edit-button" onclick="openEditModal()">Edytuj dane</button>
@@ -879,10 +930,10 @@
                 <div class="panel-title">
                     <span>Wybrane badania</span>
                     <div style="display: flex; gap: 10px;">
-                        <button class="save-payment-button" id="savePaymentButton" onclick="savePayment()" style="display: none;">
+                        <button class="save-payment-button" id="savePaymentButton" onclick="savePayment()" disabled>
                             Zapisz płatność
                         </button>
-                        <button class="remove-all-button" id="removeAllButton" onclick="removeAllBadania()" style="display: none;">
+                        <button class="remove-all-button" id="removeAllButton" onclick="removeAllBadania()" disabled>
                             Usuń wszystkie
                         </button>
                     </div>
@@ -1000,7 +1051,17 @@
 
         // Wczytaj wszystkie badania
         async function loadAllBadania() {
+            const progressContainer = document.getElementById('allBadaniaProgress');
+            const progressOverlay = document.getElementById('progressOverlay');
             try {
+                // Pokaż progress i zablokuj interfejs
+                if (progressContainer) {
+                    progressContainer.classList.remove('hidden');
+                }
+                if (progressOverlay) {
+                    progressOverlay.classList.remove('hidden');
+                }
+                
                 const response = await fetch(`${API_BASE}/api/badania`);
                 const data = await response.json();
                 allBadania = data.badania;
@@ -1008,6 +1069,14 @@
                 displayAllBadania();
             } catch (error) {
                 console.error('Błąd podczas ładowania badań:', error);
+            } finally {
+                // Ukryj progress i odblokuj interfejs
+                if (progressContainer) {
+                    progressContainer.classList.add('hidden');
+                }
+                if (progressOverlay) {
+                    progressOverlay.classList.add('hidden');
+                }
             }
         }
 
@@ -1188,10 +1257,17 @@
             const removeAllButton = document.getElementById('removeAllButton');
             const savePaymentButton = document.getElementById('savePaymentButton');
             
+            // Zawsze pokazuj przyciski, ale blokuj je jeśli nie ma danych
+            const hasData = selectedBadania.length > 0;
+            if (removeAllButton) {
+                removeAllButton.disabled = !hasData;
+            }
+            if (savePaymentButton) {
+                savePaymentButton.disabled = !hasData;
+            }
+            
             if (selectedBadania.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="4" class="empty-message">Brak wybranych badań</td></tr>';
-                removeAllButton.style.display = 'none';
-                savePaymentButton.style.display = 'none';
                 return;
             }
 
@@ -1207,10 +1283,6 @@
                     </td>
                 </tr>
             `).join('');
-            
-            // Pokaż przyciski jeśli są wybrane badania
-            removeAllButton.style.display = 'inline-block';
-            savePaymentButton.style.display = 'inline-block';
         }
 
         // Aktualizuj sumę
