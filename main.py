@@ -10,6 +10,7 @@ import os
 import io
 from typing import List, Dict, Optional
 from datetime import datetime
+import pytz
 
 app = FastAPI()
 
@@ -398,8 +399,9 @@ async def get_daily_stats():
         # Wczytaj wszystkie płatności
         platnosci = load_platnosci()
         
-        # Pobierz dzisiejszą datę w formacie polskim (DD.MM.YYYY)
-        today = datetime.now()
+        # Pobierz dzisiejszą datę w strefie czasowej Polski (DD.MM.YYYY)
+        poland_tz = pytz.timezone('Europe/Warsaw')
+        today = datetime.now(poland_tz)
         today_str = today.strftime('%d.%m.%Y')
         
         # Filtruj transakcje z dzisiejszego dnia
