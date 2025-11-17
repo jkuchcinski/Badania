@@ -9,6 +9,9 @@ IMAGE_NAME="gcr.io/${PROJECT_ID}/badania-app"
 SERVICE_NAME="badania-app"
 REGION="europe-west1"
 
+echo "🔧 Przełączanie na projekt Google Cloud..."
+gcloud config set project ${PROJECT_ID}
+
 echo "🔨 Budowanie obrazu Docker lokalnie..."
 docker build -t ${IMAGE_NAME} .
 

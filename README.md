@@ -72,13 +72,15 @@ gcloud projects add-iam-policy-binding hipokrates-478419 \
 ./deploy-local.sh
 ```
 
-Ta metoda buduje obraz lokalnie i pushuje go bezpośrednio do Container Registry.
+Ta metoda buduje obraz lokalnie i pushuje go bezpośrednio do Container Registry. Skrypt automatycznie ustawia aktywny projekt Google Cloud na `hipokrates-478419`.
 
 ### Metoda 2: Cloud Build (po naprawie uprawnień)
 
 ```bash
 ./deploy.sh
 ```
+
+Skrypt automatycznie ustawia aktywny projekt Google Cloud na `hipokrates-478419`.
 
 Lub:
 
@@ -89,6 +91,9 @@ gcloud builds submit --config cloudbuild.yaml
 ### Metoda 3: Ręczne wdrożenie
 
 ```bash
+# Ustaw aktywny projekt Google Cloud
+gcloud config set project hipokrates-478419
+
 # Zbuduj obraz lokalnie
 docker build -t gcr.io/hipokrates-478419/badania-app .
 
