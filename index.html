@@ -118,6 +118,14 @@
         .right-panel {
             position: relative;
         }
+        
+        #paymentProgress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
 
         .panel-title {
             font-size: 20px;
@@ -848,6 +856,9 @@
 
             <!-- Prawy panel - wybrane badania i suma -->
             <div class="right-panel">
+                <div class="progress-container hidden" id="paymentProgress">
+                    <div class="progress-bar"></div>
+                </div>
                 <div class="panel-title">
                     <span>Wybrane badania</span>
                     <div style="display: flex; gap: 10px;">
@@ -1223,7 +1234,13 @@
                 second: '2-digit'
             });
 
+            const progressContainer = document.getElementById('paymentProgress');
             try {
+                // Pokaż progress
+                if (progressContainer) {
+                    progressContainer.classList.remove('hidden');
+                }
+                
                 const response = await fetch(`${API_BASE}/api/platnosci/save`, {
                     method: 'POST',
                     headers: {
@@ -1254,6 +1271,11 @@
                 }
             } catch (error) {
                 alert('Błąd podczas zapisu płatności: ' + error.message);
+            } finally {
+                // Ukryj progress
+                if (progressContainer) {
+                    progressContainer.classList.add('hidden');
+                }
             }
         }
 
