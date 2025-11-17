@@ -993,6 +993,15 @@
                 updateSuma();
                 // Odśwież listę wszystkich badań, aby pokazać stan "Dodano"
                 displayAllBadania();
+                
+                // Przewiń do ostatniego wiersza w tabeli wybranych badań
+                setTimeout(() => {
+                    const selectedTableBody = document.getElementById('selectedTableBody');
+                    const lastRow = selectedTableBody.querySelector('tr:last-child');
+                    if (lastRow) {
+                        lastRow.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                    }
+                }, 100);
             }
         };
 
