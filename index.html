@@ -835,6 +835,29 @@
             border-radius: 4px;
             text-align: center;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        
+        .stats-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            border-radius: 4px 4px 0 0;
+        }
+        
+        .stats-progress-bar {
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            width: 30%;
+            animation: progress-indeterminate 1.5s ease-in-out infinite;
+        }
+        
+        .stats-progress.hidden {
+            display: none;
         }
 
         .stats-label {
@@ -963,6 +986,9 @@
                 </div>
                 <div class="stats-wrapper">
                     <div class="stats-container">
+                        <div class="stats-progress hidden" id="statsProgress">
+                            <div class="stats-progress-bar"></div>
+                        </div>
                         <div class="stats-label">Transakcje z dnia:</div>
                         <div class="stats-content">
                             <div class="stats-item">
@@ -1082,7 +1108,13 @@
 
         // Wczytaj statystyki dzienne asynchronicznie
         async function loadDailyStats() {
+            const statsProgress = document.getElementById('statsProgress');
             try {
+                // Pokaż progress (bez blokowania UI)
+                if (statsProgress) {
+                    statsProgress.classList.remove('hidden');
+                }
+                
                 const response = await fetch(`${API_BASE}/api/platnosci/stats`);
                 const data = await response.json();
                 
@@ -1112,6 +1144,11 @@
                 console.error('Błąd podczas ładowania statystyk:', error);
                 document.getElementById('statsCount').textContent = '-';
                 document.getElementById('statsSum').textContent = '-';
+            } finally {
+                // Ukryj progress
+                if (statsProgress) {
+                    statsProgress.classList.add('hidden');
+                }
             }
         }
 
