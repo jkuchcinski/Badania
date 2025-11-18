@@ -994,12 +994,13 @@
                                 <th>Kod</th>
                                 <th>Nazwa badania</th>
                                 <th>Kwota</th>
+                                <th>Ilość</th>
                                 <th>Akcja</th>
                             </tr>
                         </thead>
                         <tbody id="selectedTableBody">
                             <tr>
-                                <td colspan="4" class="empty-message">Brak wybranych badań</td>
+                                <td colspan="5" class="empty-message">Brak wybranych badań</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1277,7 +1278,9 @@
             const badanie = allBadania[index];
             
             if (badanie && !selectedBadania.some(sb => sb.kod === badanie.kod)) {
-                selectedBadania.push(badanie);
+                // Dodaj ilość domyślną = 1
+                const badanieWithQuantity = { ...badanie, ilosc: 1 };
+                selectedBadania.push(badanieWithQuantity);
                 updateSelectedList();
                 updateSuma();
                 // Odśwież listę wszystkich badań, aby pokazać stan "Dodano"
@@ -1330,15 +1333,24 @@
             }
             
             if (selectedBadania.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="empty-message">Brak wybranych badań</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-message">Brak wybranych badań</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = selectedBadania.map(badanie => `
+            tbody.innerHTML = selectedBadania.map((badanie, index) => `
                 <tr>
                     <td>${badanie.kod}</td>
                     <td>${badanie.nazwa}</td>
                     <td>${formatPrice(badanie.kwota)} zł</td>
+                    <td>
+                        <input type="number" 
+                               class="quantity-input" 
+                               value="${badanie.ilosc || 1}" 
+                               min="1" 
+                               max="999"
+                               onchange="updateQuantity(${index}, this.value)"
+                               style="width: 80px; padding: 8px; text-align: center; border: 1px solid #ddd; border-radius: 4px; font-family: 'Roboto', sans-serif; font-size: 14px;">
+                    </td>
                     <td>
                         <button class="remove-button" onclick="removeBadanie('${badanie.kod}')">
                             Usuń
@@ -1347,10 +1359,25 @@
                 </tr>
             `).join('');
         }
+        
+        window.updateQuantity = function(index, newQuantity) {
+            let quantity = parseInt(newQuantity) || 1;
+            if (quantity < 1) {
+                quantity = 1;
+            }
+            if (selectedBadania[index]) {
+                selectedBadania[index].ilosc = quantity;
+                updateSelectedList();
+                updateSuma();
+            }
+        }
 
         // Aktualizuj sumę
         function updateSuma() {
-            const suma = selectedBadania.reduce((sum, badanie) => sum + badanie.kwota, 0);
+            const suma = selectedBadania.reduce((sum, badanie) => {
+                const ilosc = badanie.ilosc || 1;
+                return sum + (badanie.kwota * ilosc);
+            }, 0);
             document.getElementById('sumaValue').textContent = formatPrice(suma) + ' zł';
         }
 
@@ -1366,11 +1393,20 @@
                 return;
             }
 
-            // Oblicz sumę
-            const suma = selectedBadania.reduce((sum, badanie) => sum + badanie.kwota, 0);
+            // Oblicz sumę (kwota * ilość)
+            const suma = selectedBadania.reduce((sum, badanie) => {
+                const ilosc = badanie.ilosc || 1;
+                return sum + (badanie.kwota * ilosc);
+            }, 0);
             
-            // Pobierz kody badań oddzielone znakiem |
-            const kody = selectedBadania.map(b => b.kod).join('|');
+            // Pobierz kody badań z ilością oddzielone znakiem |
+            const kody = selectedBadania.map(b => {
+                const ilosc = b.ilosc || 1;
+                if (ilosc > 1) {
+                    return `${b.kod}x${ilosc}`;
+                }
+                return b.kod;
+            }).join('|');
             
             // Generuj UID (użyj timestamp + losowy string)
             const uid = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
@@ -1490,9 +1526,11 @@
                     // Sprawdź czy nazwa lub kwota się zmieniły
                     if (updatedBadanie.nazwa !== selectedBadanie.nazwa || 
                         updatedBadanie.kwota !== selectedBadanie.kwota) {
-                        // Zaktualizuj dane
+                        // Zaktualizuj dane (zachowaj ilość)
+                        const ilosc = selectedBadanie.ilosc || 1;
                         selectedBadanie.nazwa = updatedBadanie.nazwa;
                         selectedBadanie.kwota = updatedBadanie.kwota;
+                        selectedBadanie.ilosc = ilosc;
                         updated = true;
                     }
                 }
