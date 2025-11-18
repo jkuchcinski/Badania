@@ -975,6 +975,17 @@
             display: none;
         }
 
+        /* Styl dla zaznaczonego wiersza w tabeli transakcji */
+        #transactionsMasterBody tr.transaction-row.selected {
+            background: #616161 !important;
+            color: white !important;
+        }
+
+        #transactionsMasterBody tr.transaction-row.selected:hover {
+            background: #616161 !important;
+            color: white !important;
+        }
+
         .stats-label {
             font-size: 16px;
             margin-bottom: 16px;
@@ -1110,7 +1121,10 @@
                         <div class="stats-progress hidden" id="statsProgress">
                             <div class="stats-progress-bar"></div>
                         </div>
-                        <div class="stats-label">Transakcje z dnia:</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <div class="stats-label" style="margin: 0;">Transakcje z dnia:</div>
+                            <span class="material-icons" onclick="openTransactionsModal()" style="cursor: pointer; font-size: 24px; opacity: 0.9; transition: opacity 0.3s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.9'">calendar_today</span>
+                        </div>
                         <div class="stats-content">
                             <div class="stats-item">
                                 <span class="stats-item-label">Ilość:</span>
@@ -1120,6 +1134,74 @@
                                 <span class="stats-item-label">Suma:</span>
                                 <span class="stats-item-value" id="statsSum">-</span>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal do transakcji -->
+    <div class="modal-overlay" id="transactionsModal">
+        <div class="modal-content" style="max-width: 1200px; width: 90%; position: relative;">
+            <div class="progress-container hidden" id="transactionsProgress">
+                <div class="progress-bar"></div>
+            </div>
+            <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.7); z-index: 10; display: none;" id="transactionsOverlay"></div>
+            <div class="modal-header">
+                <h2>Transakcje</h2>
+                <button class="close-button" onclick="closeTransactionsModal()">Zamknij</button>
+            </div>
+            <div style="display: flex; gap: 24px; padding: 24px; height: calc(90vh - 120px);">
+                <!-- Lewa strona - kalendarz -->
+                <div style="flex: 0 0 350px;">
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #212121;">Wybierz datę:</label>
+                        <input type="date" id="transactionDatePicker" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-family: 'Roboto', sans-serif; font-size: 14px;" onchange="handleDatePickerChange()">
+                    </div>
+                    <div id="calendarContainer" style="background: white; border-radius: 4px; padding: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <!-- Kalendarz będzie wygenerowany przez JavaScript -->
+                    </div>
+                </div>
+                <!-- Prawa strona - master/detail -->
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 16px;">
+                    <!-- Master - lista transakcji -->
+                    <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                        <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 500; color: #212121;">Transakcje z wybranego dnia</h3>
+                        <div style="flex: 1; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px;">
+                            <table class="results-table" style="width: 100%;">
+                                <thead style="position: sticky; top: 0; z-index: 5;">
+                                    <tr>
+                                        <th style="background: #1976d2; color: white; padding: 12px; text-align: left; font-size: 14px; font-family: 'Roboto', sans-serif;">Data</th>
+                                        <th style="background: #1976d2; color: white; padding: 12px; text-align: right; font-size: 14px; font-family: 'Roboto', sans-serif;">Kwota</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactionsMasterBody" style="font-family: 'Roboto', sans-serif; font-size: 14px;">
+                                    <tr>
+                                        <td colspan="2" style="text-align: center; padding: 24px; color: #757575;">Wybierz datę</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <!-- Detail - szczegóły transakcji -->
+                    <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                        <h3 style="margin: 0 0 12px 0; font-size: 16px; font-weight: 500; color: #212121;">Szczegóły transakcji</h3>
+                        <div style="flex: 1; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px;">
+                            <table class="results-table" style="width: 100%;">
+                                <thead style="position: sticky; top: 0; z-index: 5;">
+                                    <tr>
+                                        <th style="background: #1976d2; color: white; padding: 12px; text-align: right; font-size: 14px; font-family: 'Roboto', sans-serif;">Kod</th>
+                                        <th style="background: #1976d2; color: white; padding: 12px; text-align: left; font-size: 14px; font-family: 'Roboto', sans-serif;">Nazwa badania</th>
+                                        <th style="background: #1976d2; color: white; padding: 12px; text-align: center; font-size: 14px; font-family: 'Roboto', sans-serif;">Ilość</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactionsDetailBody" style="font-family: 'Roboto', sans-serif; font-size: 14px;">
+                                    <tr>
+                                        <td colspan="3" style="text-align: center; padding: 24px; color: #757575;">Wybierz transakcję</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -1878,6 +1960,274 @@
         document.getElementById('editModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeEditModal();
+            }
+        });
+
+        // Funkcje dla modala transakcji
+        let selectedTransactionDate = null;
+        let transactionsForDate = [];
+        let selectedTransactionIndex = -1; // -1 oznacza brak zaznaczenia
+
+        function openTransactionsModal() {
+            document.getElementById('transactionsModal').classList.add('active');
+            // Ustaw dzisiejszą datę
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            document.getElementById('transactionDatePicker').value = todayStr;
+            selectedTransactionDate = todayStr;
+            // Resetuj zaznaczenie przy otwarciu
+            selectedTransactionIndex = -1;
+            // Wygeneruj kalendarz
+            generateCalendar(today.getFullYear(), today.getMonth());
+            // Załaduj transakcje z progressem
+            loadTransactionsForDate();
+        }
+
+        function closeTransactionsModal() {
+            document.getElementById('transactionsModal').classList.remove('active');
+        }
+
+        function generateCalendar(year, month) {
+            const container = document.getElementById('calendarContainer');
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const today = new Date();
+            const isToday = (day) => {
+                return today.getFullYear() === year && 
+                       today.getMonth() === month && 
+                       today.getDate() === day;
+            };
+            const isSelected = (day) => {
+                if (!selectedTransactionDate) return false;
+                const selected = new Date(selectedTransactionDate);
+                return selected.getFullYear() === year && 
+                       selected.getMonth() === month && 
+                       selected.getDate() === day;
+            };
+
+            const monthNames = ['Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec', 
+                              'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień'];
+            const dayNames = ['Nd', 'Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb'];
+
+            let html = `
+                <div style="text-align: center; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <button onclick="changeMonth(-1)" style="background: none; border: none; cursor: pointer; padding: 4px 8px; color: #1976d2;">‹</button>
+                        <h3 style="margin: 0; font-size: 18px; font-weight: 500;">${monthNames[month]} ${year}</h3>
+                        <button onclick="changeMonth(1)" style="background: none; border: none; cursor: pointer; padding: 4px 8px; color: #1976d2;">›</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;">
+            `;
+
+            // Nagłówki dni
+            dayNames.forEach(day => {
+                html += `<div style="text-align: center; padding: 8px; font-weight: 500; font-size: 12px; color: #757575;">${day}</div>`;
+            });
+
+            // Puste komórki przed pierwszym dniem
+            for (let i = 0; i < firstDay; i++) {
+                html += `<div></div>`;
+            }
+
+            // Dni miesiąca
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayClass = isToday(day) ? 'background: #1976d2; color: white;' : 
+                                isSelected(day) ? 'background: #616161; color: white;' : 
+                                'background: #f5f5f5; color: #212121;';
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                html += `
+                    <div onclick="selectDate('${dateStr}')" 
+                         style="${dayClass} text-align: center; padding: 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; font-size: 14px;"
+                         onmouseover="if(!this.style.background.includes('1976d2') && !this.style.background.includes('616161')) this.style.background='#e0e0e0'"
+                         onmouseout="if(!this.style.background.includes('1976d2')) this.style.background='${isSelected(day) ? '#616161' : '#f5f5f5'}'">
+                        ${day}
+                    </div>
+                `;
+            }
+
+            html += `</div></div>`;
+            container.innerHTML = html;
+        }
+
+        window.changeMonth = function(delta) {
+            const datePicker = document.getElementById('transactionDatePicker');
+            const currentDate = datePicker.value ? new Date(datePicker.value) : new Date();
+            currentDate.setMonth(currentDate.getMonth() + delta);
+            generateCalendar(currentDate.getFullYear(), currentDate.getMonth());
+        };
+
+        window.selectDate = function(dateStr) {
+            selectedTransactionDate = dateStr;
+            document.getElementById('transactionDatePicker').value = dateStr;
+            const date = new Date(dateStr);
+            generateCalendar(date.getFullYear(), date.getMonth());
+            // Resetuj zaznaczenie przy zmianie daty
+            selectedTransactionIndex = -1;
+            loadTransactionsForDate();
+        };
+
+        function handleDatePickerChange() {
+            const datePicker = document.getElementById('transactionDatePicker');
+            const dateStr = datePicker.value;
+            if (dateStr) {
+                selectedTransactionDate = dateStr;
+                // Resetuj zaznaczenie przy zmianie daty
+                selectedTransactionIndex = -1;
+                loadTransactionsForDate();
+            }
+        }
+
+        async function loadTransactionsForDate() {
+            if (!selectedTransactionDate) return;
+
+            const progressContainer = document.getElementById('transactionsProgress');
+            const overlay = document.getElementById('transactionsOverlay');
+            
+            try {
+                // Pokaż progress i zablokuj UI
+                if (progressContainer) {
+                    progressContainer.classList.remove('hidden');
+                }
+                if (overlay) {
+                    overlay.style.display = 'block';
+                }
+
+                // Wyślij datę w formacie YYYY-MM-DD (z date pickera)
+                const response = await fetch(`${API_BASE}/api/platnosci/by-date?date=${selectedTransactionDate}`);
+                const data = await response.json();
+                transactionsForDate = data.transactions || [];
+                
+                // Sortuj po dacie i godzinie
+                transactionsForDate.sort((a, b) => {
+                    const dateA = a.DATA || '';
+                    const dateB = b.DATA || '';
+                    return dateB.localeCompare(dateA); // Od najnowszych
+                });
+
+                // Wyświetl w tabeli master
+                const masterBody = document.getElementById('transactionsMasterBody');
+                if (transactionsForDate.length === 0) {
+                    masterBody.innerHTML = '<tr><td colspan="2" style="text-align: center; padding: 24px; color: #757575;">Brak transakcji w wybranym dniu</td></tr>';
+                    document.getElementById('transactionsDetailBody').innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 24px; color: #757575;">Brak transakcji</td></tr>';
+                    selectedTransactionIndex = -1;
+                } else {
+                    // Jeśli nie ma zaznaczenia, wybierz pierwszą transakcję
+                    if (selectedTransactionIndex === -1 && transactionsForDate.length > 0) {
+                        selectedTransactionIndex = 0;
+                    }
+                    
+                    masterBody.innerHTML = transactionsForDate.map((transaction, index) => {
+                        const isSelected = index === selectedTransactionIndex;
+                        return `
+                        <tr onclick="selectTransaction(${index})" 
+                            data-index="${index}"
+                            class="transaction-row ${isSelected ? 'selected' : ''}"
+                            style="cursor: pointer; border-bottom: 1px solid #e0e0e0; ${!isSelected ? 'background: white; color: #212121;' : ''}"
+                            onmouseover="if(!this.classList.contains('selected')) this.style.background='#f5f5f5'"
+                            onmouseout="if(!this.classList.contains('selected')) { this.style.background='white'; this.style.color='#212121'; }">
+                            <td style="padding: 12px;">${transaction.DATA || ''}</td>
+                            <td style="padding: 12px; text-align: right;">${formatPrice(parseFloat((transaction.KWOTA || '0').replace(',', '.')))} zł</td>
+                        </tr>
+                    `;
+                    }).join('');
+
+                    // Jeśli jest zaznaczenie, wyświetl szczegóły
+                    if (selectedTransactionIndex >= 0 && selectedTransactionIndex < transactionsForDate.length) {
+                        selectTransaction(selectedTransactionIndex);
+                    } else {
+                        // Wyczyść detail jeśli nie ma zaznaczenia
+                        document.getElementById('transactionsDetailBody').innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 24px; color: #757575;">Wybierz transakcję</td></tr>';
+                    }
+                }
+            } catch (error) {
+                console.error('Błąd podczas ładowania transakcji:', error);
+            } finally {
+                // Ukryj progress i odblokuj UI
+                if (progressContainer) {
+                    progressContainer.classList.add('hidden');
+                }
+                if (overlay) {
+                    overlay.style.display = 'none';
+                }
+            }
+        }
+
+        window.selectTransaction = function(index) {
+            if (index < 0 || index >= transactionsForDate.length) return;
+            
+            const previousIndex = selectedTransactionIndex;
+            selectedTransactionIndex = index;
+            const transaction = transactionsForDate[index];
+            if (!transaction) return;
+
+            // Zdekoduj BADANIA
+            const badaniaStr = transaction.BADANIA || '';
+            const badaniaItems = badaniaStr.split('|').filter(item => item.trim());
+            
+            const decodedBadania = [];
+            badaniaItems.forEach(item => {
+                const trimmed = item.trim();
+                if (trimmed.includes('x')) {
+                    const [kod, ilosc] = trimmed.split('x');
+                    decodedBadania.push({
+                        kod: kod.trim(),
+                        ilosc: parseInt(ilosc.trim()) || 1
+                    });
+                } else {
+                    decodedBadania.push({
+                        kod: trimmed,
+                        ilosc: 1
+                    });
+                }
+            });
+
+            // Znajdź nazwy badań
+            const detailItems = decodedBadania.map(item => {
+                const badanie = allBadania.find(b => b.kod === item.kod);
+                return {
+                    kod: item.kod,
+                    nazwa: badanie ? badanie.nazwa : 'Nieznane badanie',
+                    ilosc: item.ilosc
+                };
+            });
+
+            // Wyświetl w tabeli detail
+            const detailBody = document.getElementById('transactionsDetailBody');
+            if (detailItems.length === 0) {
+                detailBody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 24px; color: #757575;">Brak badań w transakcji</td></tr>';
+            } else {
+                detailBody.innerHTML = detailItems.map(item => `
+                    <tr style="border-bottom: 1px solid #e0e0e0;">
+                        <td style="padding: 12px; text-align: right;">${item.kod}</td>
+                        <td style="padding: 12px;">${item.nazwa}</td>
+                        <td style="padding: 12px; text-align: center;">${item.ilosc}</td>
+                    </tr>
+                `).join('');
+            }
+
+            // Zaktualizuj podświetlenie w master - odznacz poprzedni, zaznacz nowy
+            const masterRows = document.querySelectorAll('#transactionsMasterBody tr.transaction-row');
+            masterRows.forEach((row, i) => {
+                if (i === index) {
+                    // Zaznacz nowy wiersz
+                    row.classList.add('selected');
+                    // Usuń inline style, aby CSS miał priorytet
+                    row.style.background = '';
+                    row.style.color = '';
+                } else {
+                    // Odznacz wszystkie inne wiersze
+                    row.classList.remove('selected');
+                    // Przywróć domyślny stan
+                    row.style.background = 'white';
+                    row.style.color = '#212121';
+                }
+            });
+        };
+
+        // Zamknij modal transakcji przy kliknięciu poza nim
+        document.getElementById('transactionsModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeTransactionsModal();
             }
         });
     </script>

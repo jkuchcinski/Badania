@@ -444,6 +444,42 @@ async def get_daily_stats():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Błąd podczas pobierania statystyk: {str(e)}")
 
+@app.get("/api/platnosci/by-date")
+async def get_platnosci_by_date(date: str):
+    """Zwraca transakcje z wybranego dnia"""
+    try:
+        # Wczytaj wszystkie płatności
+        platnosci = load_platnosci()
+        
+        # Konwertuj datę z formatu YYYY-MM-DD lub YYYY.MM.DD na DD.MM.YYYY
+        date_str = date
+        if '-' in date:
+            # Format YYYY-MM-DD
+            date_parts = date.split('-')
+            if len(date_parts) == 3:
+                date_str = f"{date_parts[2]}.{date_parts[1]}.{date_parts[0]}"
+        elif '.' in date:
+            # Format YYYY.MM.DD
+            date_parts = date.split('.')
+            if len(date_parts) == 3:
+                date_str = f"{date_parts[2]}.{date_parts[1]}.{date_parts[0]}"
+        
+        # Filtruj transakcje z wybranego dnia
+        filtered_platnosci = []
+        for platnosc in platnosci:
+            data_str = platnosc.get('DATA', '').strip()
+            if data_str.startswith(date_str):
+                filtered_platnosci.append(platnosc)
+        
+        # Sortuj po dacie i godzinie (od najnowszych)
+        filtered_platnosci.sort(key=lambda x: x.get('DATA', ''), reverse=True)
+        
+        return {
+            "transactions": filtered_platnosci
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Błąd podczas pobierania transakcji: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080)
