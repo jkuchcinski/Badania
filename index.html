@@ -1154,13 +1154,26 @@
             </div>
             <div style="display: flex; gap: 24px; padding: 24px; height: calc(90vh - 120px);">
                 <!-- Lewa strona - kalendarz -->
-                <div style="flex: 0 0 350px;">
+                <div style="flex: 0 0 350px; display: flex; flex-direction: column;">
                     <div style="margin-bottom: 16px;">
                         <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #212121;">Wybierz datę:</label>
                         <input type="date" id="transactionDatePicker" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-family: 'Roboto', sans-serif; font-size: 14px;" onchange="handleDatePickerChange()">
                     </div>
-                    <div id="calendarContainer" style="background: white; border-radius: 4px; padding: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div id="calendarContainer" style="background: white; border-radius: 4px; padding: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 16px;">
                         <!-- Kalendarz będzie wygenerowany przez JavaScript -->
+                    </div>
+                    <!-- Pusty panel/spacer -->
+                    <div style="flex: 1;"></div>
+                    <!-- Panel ze statystykami dnia -->
+                    <div style="background: #616161; border-radius: 4px; padding: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <div style="color: white; margin-bottom: 12px; text-align: center;">
+                            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 4px;">Ilość transakcji</div>
+                            <div style="font-size: 24px; font-weight: 500;" id="dayTransactionCount">-</div>
+                        </div>
+                        <div style="color: white; text-align: center; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.2);">
+                            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 4px;">Suma transakcji</div>
+                            <div style="font-size: 24px; font-weight: 500;" id="dayTransactionSum">-</div>
+                        </div>
                     </div>
                 </div>
                 <!-- Prawa strona - master/detail -->
@@ -1967,6 +1980,8 @@
         let selectedTransactionDate = null;
         let transactionsForDate = [];
         let selectedTransactionIndex = -1; // -1 oznacza brak zaznaczenia
+        let currentCalendarYear = null;
+        let currentCalendarMonth = null;
 
         function openTransactionsModal() {
             document.getElementById('transactionsModal').classList.add('active');
@@ -1988,6 +2003,10 @@
         }
 
         function generateCalendar(year, month) {
+            // Zapamiętaj aktualnie wyświetlany miesiąc
+            currentCalendarYear = year;
+            currentCalendarMonth = month;
+            
             const container = document.getElementById('calendarContainer');
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -2031,15 +2050,19 @@
 
             // Dni miesiąca
             for (let day = 1; day <= daysInMonth; day++) {
-                const dayClass = isToday(day) ? 'background: #1976d2; color: white;' : 
-                                isSelected(day) ? 'background: #616161; color: white;' : 
+                const isTodayDay = isToday(day);
+                const isSelectedDay = isSelected(day);
+                const dayClass = isTodayDay ? 'background: #1976d2; color: white;' : 
+                                isSelectedDay ? 'background: #616161; color: white;' : 
                                 'background: #f5f5f5; color: #212121;';
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                 html += `
                     <div onclick="selectDate('${dateStr}')" 
+                         data-is-today="${isTodayDay}"
+                         data-is-selected="${isSelectedDay}"
                          style="${dayClass} text-align: center; padding: 12px; border-radius: 4px; cursor: pointer; transition: all 0.2s; font-size: 14px;"
-                         onmouseover="if(!this.style.background.includes('1976d2') && !this.style.background.includes('616161')) this.style.background='#e0e0e0'"
-                         onmouseout="if(!this.style.background.includes('1976d2')) this.style.background='${isSelected(day) ? '#616161' : '#f5f5f5'}'">
+                         onmouseover="if(this.dataset.isToday !== 'true' && this.dataset.isSelected !== 'true') this.style.background='#e0e0e0'"
+                         onmouseout="if(this.dataset.isToday === 'true') { this.style.background='#1976d2'; this.style.color='white'; } else if(this.dataset.isSelected === 'true') { this.style.background='#616161'; this.style.color='white'; } else { this.style.background='#f5f5f5'; this.style.color='#212121'; }">
                         ${day}
                     </div>
                 `;
@@ -2050,10 +2073,13 @@
         }
 
         window.changeMonth = function(delta) {
-            const datePicker = document.getElementById('transactionDatePicker');
-            const currentDate = datePicker.value ? new Date(datePicker.value) : new Date();
-            currentDate.setMonth(currentDate.getMonth() + delta);
-            generateCalendar(currentDate.getFullYear(), currentDate.getMonth());
+            // Użyj aktualnie wyświetlanego miesiąca zamiast daty z date pickera
+            let year = currentCalendarYear !== null ? currentCalendarYear : new Date().getFullYear();
+            let month = currentCalendarMonth !== null ? currentCalendarMonth : new Date().getMonth();
+            
+            const newDate = new Date(year, month, 1);
+            newDate.setMonth(newDate.getMonth() + delta);
+            generateCalendar(newDate.getFullYear(), newDate.getMonth());
         };
 
         window.selectDate = function(dateStr) {
@@ -2071,6 +2097,9 @@
             const dateStr = datePicker.value;
             if (dateStr) {
                 selectedTransactionDate = dateStr;
+                // Zaktualizuj widok kalendarza do miesiąca wybranej daty
+                const date = new Date(dateStr);
+                generateCalendar(date.getFullYear(), date.getMonth());
                 // Resetuj zaznaczenie przy zmianie daty
                 selectedTransactionIndex = -1;
                 loadTransactionsForDate();
@@ -2103,6 +2132,21 @@
                     const dateB = b.DATA || '';
                     return dateB.localeCompare(dateA); // Od najnowszych
                 });
+
+                // Oblicz sumę transakcji
+                let suma = 0;
+                transactionsForDate.forEach(transaction => {
+                    const kwotaStr = (transaction.KWOTA || '0').replace(',', '.');
+                    try {
+                        suma += parseFloat(kwotaStr);
+                    } catch (e) {
+                        console.error('Błąd parsowania kwoty:', kwotaStr);
+                    }
+                });
+
+                // Zaktualizuj panel ze statystykami
+                document.getElementById('dayTransactionCount').textContent = transactionsForDate.length;
+                document.getElementById('dayTransactionSum').textContent = formatPrice(suma) + ' zł';
 
                 // Wyświetl w tabeli master
                 const masterBody = document.getElementById('transactionsMasterBody');
