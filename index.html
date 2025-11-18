@@ -644,11 +644,74 @@
         .results-table td:nth-child(3) {
             text-align: right;
         }
+        
+        /* Wycentrowanie Akcja - 4. kolumna w tabeli wszystkich badań */
+        #allBadaniaTable th:nth-child(4),
+        #allBadaniaTable td:nth-child(4) {
+            text-align: center;
+        }
 
         /* Wyrównanie KOD do prawej - 1. kolumna w tabeli wybranych */
         #selectedTable th:nth-child(1),
         #selectedTable td:nth-child(1) {
             text-align: right;
+        }
+        
+        /* Wyrównanie Ilość - 4. kolumna w tabeli wybranych */
+        #selectedTable th:nth-child(4) {
+            text-align: center;
+        }
+        #selectedTable td:nth-child(4) {
+            text-align: right;
+        }
+        
+        /* Wycentrowanie Akcja - 5. kolumna w tabeli wybranych */
+        #selectedTable th:nth-child(5),
+        #selectedTable td:nth-child(5) {
+            text-align: center;
+        }
+        
+        /* Wyrównanie inputu Ilość do prawej */
+        #selectedTable td:nth-child(4) input.quantity-input {
+            text-align: right;
+        }
+        
+        /* Style dla steppera Ilość - zawsze pokazuj strzałki i kolor granatowy */
+        .quantity-input {
+            width: 80px;
+            padding: 8px;
+            text-align: right;
+            border: 1px solid #f0f0f0;
+            border-radius: 4px;
+            font-family: 'Roboto', sans-serif;
+            font-size: 14px;
+            color: #212121;
+            -webkit-appearance: textfield;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+        
+        .quantity-input::-webkit-inner-spin-button,
+        .quantity-input::-webkit-outer-spin-button {
+            opacity: 1;
+            height: 20px;
+            width: 20px;
+            cursor: pointer;
+            background-color: #1976d2;
+        }
+        
+        .quantity-input::-webkit-inner-spin-button {
+            -webkit-appearance: inner-spin-button;
+        }
+        
+        .quantity-input:focus {
+            border-color: #e0e0e0;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+        }
+        
+        .quantity-input:hover {
+            border-color: #e0e0e0;
         }
 
         .results-table tr:hover {
@@ -1348,8 +1411,7 @@
                                value="${badanie.ilosc || 1}" 
                                min="1" 
                                max="999"
-                               onchange="updateQuantity(${index}, this.value)"
-                               style="width: 80px; padding: 8px; text-align: center; border: 1px solid #ddd; border-radius: 4px; font-family: 'Roboto', sans-serif; font-size: 14px;">
+                               onchange="updateQuantity(${index}, this.value)">
                     </td>
                     <td>
                         <button class="remove-button" onclick="removeBadanie('${badanie.kod}')">
