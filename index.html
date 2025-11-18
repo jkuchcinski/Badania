@@ -1124,8 +1124,9 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                             <div class="stats-label" style="margin: 0;">Transakcje z dnia:</div>
                             <div style="display: flex; gap: 12px; align-items: center;">
-                                <span class="material-icons" onclick="openTransactionsModal()" style="cursor: pointer; font-size: 24px; opacity: 0.9; transition: opacity 0.3s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.9'">calendar_today</span>
+                                <span class="material-icons" onclick="openTransactionsModal()" style="cursor: pointer; font-size: 24px; opacity: 0.9; transition: opacity 0.3s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.9'" title="Dzienne zestawienie transakcji">calendar_today</span>
                                 <span class="material-icons" onclick="generateDailyReport()" style="cursor: pointer; font-size: 24px; opacity: 0.9; transition: opacity 0.3s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.9'" title="Pobierz raport dzienny (PDF)">print</span>
+                                <span class="material-icons" onclick="generateMonthlyReport()" style="cursor: pointer; font-size: 24px; opacity: 0.9; transition: opacity 0.3s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.9'" title="Pobierz raport miesięczny (PDF)">description</span>
                             </div>
                         </div>
                         <div class="stats-content">
@@ -2509,7 +2510,7 @@
             doc.setFontSize(12);
             doc.setFont('helvetica', 'bold');
             const sumaText = `Suma wszystkich transakcji: ${formatPriceForPDF(suma)}`;
-            doc.text(sumaText, margin, yPos);
+            doc.text(sumaText, 190, yPos, { align: 'right' });
             
             // Stopka
             const totalPages = doc.internal.getNumberOfPages();
@@ -2522,6 +2523,250 @@
             
             // Zapisz PDF
             const fileName = `raport_dzienny_${dateStr.replace(/\./g, '_')}.pdf`;
+            doc.save(fileName);
+        }
+
+        // Funkcja do generowania raportu miesięcznego PDF
+        async function generateMonthlyReport() {
+            const progressOverlay = document.getElementById('progressOverlay');
+            const statsProgress = document.getElementById('statsProgress');
+            
+            try {
+                // Pokaż progress
+                if (progressOverlay) {
+                    progressOverlay.classList.remove('hidden');
+                }
+                if (statsProgress) {
+                    statsProgress.classList.remove('hidden');
+                }
+                
+                // Pobierz aktualną datę z panelu lub użyj dzisiejszej daty
+                const statsLabel = document.querySelector('.stats-label');
+                let reportDate = new Date();
+                
+                // Spróbuj wyciągnąć datę z labela "Transakcje z dnia: DD.MM.YYYY, HH:MM:SS"
+                const labelText = statsLabel ? statsLabel.textContent : '';
+                if (labelText.includes('Transakcje z dnia:')) {
+                    const dateMatch = labelText.match(/(\d{2}\.\d{2}\.\d{4})/);
+                    if (dateMatch) {
+                        const [day, month, year] = dateMatch[1].split('.');
+                        reportDate = new Date(year, month - 1, day);
+                    }
+                }
+                
+                const year = reportDate.getFullYear();
+                const month = reportDate.getMonth();
+                const monthStr = String(month + 1).padStart(2, '0');
+                const monthName = ['Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec', 
+                                  'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień'][month];
+                
+                // Pobierz wszystkie transakcje z miesiąca
+                const allTransactions = [];
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const today = new Date();
+                const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+                const lastDayToCheck = isCurrentMonth ? today.getDate() : daysInMonth;
+                
+                for (let day = 1; day <= lastDayToCheck; day++) {
+                    const dateStrForAPI = `${year}-${monthStr}-${String(day).padStart(2, '0')}`;
+                    try {
+                        const response = await fetch(`${API_BASE}/api/platnosci/by-date?date=${dateStrForAPI}`);
+                        const data = await response.json();
+                        if (data.transactions && data.transactions.length > 0) {
+                            allTransactions.push(...data.transactions);
+                        }
+                    } catch (error) {
+                        console.error(`Błąd podczas pobierania transakcji dla ${dateStrForAPI}:`, error);
+                    }
+                }
+                
+                if (allTransactions.length === 0) {
+                    alert('Brak transakcji do wygenerowania raportu dla wybranego miesiąca.');
+                    // Ukryj progress
+                    if (progressOverlay) {
+                        progressOverlay.classList.add('hidden');
+                    }
+                    if (statsProgress) {
+                        statsProgress.classList.add('hidden');
+                    }
+                    return;
+                }
+                
+                // Załaduj bibliotekę jsPDF dynamicznie
+                if (typeof window.jsPDF === 'undefined') {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                    script.onload = async () => {
+                        await loadFontForPDF();
+                        generateMonthlyPDF(allTransactions, year, month, monthName);
+                        // Ukryj progress
+                        if (progressOverlay) {
+                            progressOverlay.classList.add('hidden');
+                        }
+                        if (statsProgress) {
+                            statsProgress.classList.add('hidden');
+                        }
+                    };
+                    document.head.appendChild(script);
+                } else {
+                    await loadFontForPDF();
+                    generateMonthlyPDF(allTransactions, year, month, monthName);
+                    // Ukryj progress
+                    if (progressOverlay) {
+                        progressOverlay.classList.add('hidden');
+                    }
+                    if (statsProgress) {
+                        statsProgress.classList.add('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error('Błąd podczas generowania raportu miesięcznego:', error);
+                alert('Wystąpił błąd podczas generowania raportu miesięcznego.');
+                // Ukryj progress w przypadku błędu
+                if (progressOverlay) {
+                    progressOverlay.classList.add('hidden');
+                }
+                if (statsProgress) {
+                    statsProgress.classList.add('hidden');
+                }
+            }
+        }
+
+        function generateMonthlyPDF(transactions, year, month, monthName) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Użyj czcionki Helvetica
+            doc.setFont('helvetica');
+            
+            // Funkcja do formatowania kwoty z PLN
+            const formatPriceForPDF = (value) => {
+                const formatted = formatPrice(value);
+                return formatted + ' PLN';
+            };
+            
+            // Funkcja do formatowania daty
+            const formatDateForPDF = (dateStr) => {
+                let data = dateStr || '';
+                data = data.replace(',', ' ');
+                const dateMatch = data.match(/(\d{2}\.\d{2}\.\d{4})\s+(\d{2}):(\d{2})/);
+                if (dateMatch) {
+                    return `${dateMatch[1]} ${dateMatch[2]}:${dateMatch[3]}`;
+                } else {
+                    return data.replace(',', ' ');
+                }
+            };
+            
+            // Grupuj transakcje po dniach (z pełną datą)
+            const transactionsByDay = {};
+            transactions.forEach(transaction => {
+                const dataStr = transaction.DATA || '';
+                const dateMatch = dataStr.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+                if (dateMatch) {
+                    const day = parseInt(dateMatch[1]);
+                    const month = parseInt(dateMatch[2]);
+                    const year = parseInt(dateMatch[3]);
+                    const dateKey = `${day}.${month}.${year}`;
+                    if (!transactionsByDay[dateKey]) {
+                        transactionsByDay[dateKey] = [];
+                    }
+                    transactionsByDay[dateKey].push(transaction);
+                }
+            });
+            
+            // Nagłówek
+            doc.setFontSize(18);
+            doc.text('Raport transakcji', 105, 20, { align: 'center' });
+            
+            doc.setFontSize(12);
+            doc.text(`${monthName} ${year}`, 105, 30, { align: 'center' });
+            
+            // Tabela transakcji
+            let yPos = 50;
+            const pageHeight = doc.internal.pageSize.height;
+            const lineHeight = 8;
+            const margin = 20;
+            const dateColRight = margin + 70;
+            const countColRight = margin + 120;
+            const sumColRight = 190;
+            
+            // Nagłówki kolumn
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Data', dateColRight, yPos, { align: 'right' });
+            doc.text('Liczba transakcji', countColRight, yPos, { align: 'right' });
+            doc.text('Suma', sumColRight, yPos, { align: 'right' });
+            
+            yPos += lineHeight;
+            doc.setDrawColor(200, 200, 200);
+            doc.line(margin, yPos, 190, yPos);
+            yPos += 5;
+            
+            // Wiersze - dni miesiąca
+            doc.setFont('helvetica', 'normal');
+            let totalSum = 0;
+            // Sortuj daty (format DD.MM.YYYY)
+            const sortedDates = Object.keys(transactionsByDay).sort((a, b) => {
+                const [dayA, monthA, yearA] = a.split('.').map(Number);
+                const [dayB, monthB, yearB] = b.split('.').map(Number);
+                if (yearA !== yearB) return yearA - yearB;
+                if (monthA !== monthB) return monthA - monthB;
+                return dayA - dayB;
+            });
+            
+            sortedDates.forEach(dateKey => {
+                // Sprawdź czy potrzeba nowej strony
+                if (yPos > pageHeight - 40) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                const dayTransactions = transactionsByDay[dateKey];
+                const count = dayTransactions.length;
+                let daySum = 0;
+                dayTransactions.forEach(transaction => {
+                    const kwotaStr = (transaction.KWOTA || '0').replace(',', '.');
+                    try {
+                        daySum += parseFloat(kwotaStr);
+                    } catch (e) {
+                        console.error('Błąd parsowania kwoty:', kwotaStr);
+                    }
+                });
+                totalSum += daySum;
+                
+                // Data - wyrównane do prawej (format DD.MM.YYYY)
+                doc.text(dateKey, dateColRight, yPos, { align: 'right' });
+                // Liczba transakcji - wyrównane do prawej
+                doc.text(count.toString(), countColRight, yPos, { align: 'right' });
+                // Suma - wyrównane do prawej
+                doc.text(formatPriceForPDF(daySum), sumColRight, yPos, { align: 'right' });
+                
+                yPos += lineHeight;
+            });
+            
+            // Linia przed sumą
+            yPos += 5;
+            doc.setDrawColor(200, 200, 200);
+            doc.line(margin, yPos, 190, yPos);
+            yPos += 10;
+            
+            // Suma
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            const sumaText = `Suma wszystkich transakcji: ${formatPriceForPDF(totalSum)}`;
+            doc.text(sumaText, 190, yPos, { align: 'right' });
+            
+            // Stopka
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Strona ${i} z ${totalPages}`, 105, pageHeight - 10, { align: 'center' });
+            }
+            
+            // Zapisz PDF
+            const fileName = `raport_miesieczny_${monthName.toLowerCase()}_${year}.pdf`;
             doc.save(fileName);
         }
     </script>
