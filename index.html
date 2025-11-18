@@ -405,6 +405,37 @@
         .edit-table td:nth-child(5) {
             width: 90px; /* Akcja - szerokość dla przycisku USUŃ */
         }
+        
+        /* Wyrównanie KOD do prawej - 1. kolumna */
+        .edit-table th:nth-child(1),
+        .edit-table td:nth-child(1) {
+            text-align: right;
+        }
+        
+        /* Wyrównanie Kwota do prawej - 3. kolumna */
+        .edit-table th:nth-child(3),
+        .edit-table td:nth-child(3) {
+            text-align: right;
+        }
+        
+        /* Wyrównanie Kwota 2 do prawej - 4. kolumna */
+        .edit-table th:nth-child(4),
+        .edit-table td:nth-child(4) {
+            text-align: right;
+        }
+        
+        /* Wycentrowanie Akcja - 5. kolumna */
+        .edit-table th:nth-child(5),
+        .edit-table td:nth-child(5) {
+            text-align: center;
+        }
+        
+        /* Wyrównanie inputów w kolumnach KOD, Kwota i Kwota 2 do prawej */
+        .edit-table td:nth-child(1) input,
+        .edit-table td:nth-child(3) input,
+        .edit-table td:nth-child(4) input {
+            text-align: right;
+        }
 
         .edit-table input {
             width: 100%;
