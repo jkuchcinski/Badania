@@ -1123,7 +1123,10 @@
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                             <div class="stats-label" style="margin: 0;">Transakcje z dnia:</div>
-                            <span class="material-icons" onclick="openTransactionsModal()" style="cursor: pointer; font-size: 24px; opacity: 0.9; transition: opacity 0.3s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.9'">calendar_today</span>
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <span class="material-icons" onclick="openTransactionsModal()" style="cursor: pointer; font-size: 24px; opacity: 0.9; transition: opacity 0.3s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.9'">calendar_today</span>
+                                <span class="material-icons" onclick="generateDailyReport()" style="cursor: pointer; font-size: 24px; opacity: 0.9; transition: opacity 0.3s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.9'" title="Pobierz raport dzienny (PDF)">print</span>
+                            </div>
                         </div>
                         <div class="stats-content">
                             <div class="stats-item">
@@ -2286,6 +2289,241 @@
                 closeTransactionsModal();
             }
         });
+
+        // Funkcja do generowania raportu dziennego PDF
+        async function generateDailyReport() {
+            const progressOverlay = document.getElementById('progressOverlay');
+            const statsProgress = document.getElementById('statsProgress');
+            
+            try {
+                // Pokaż progress
+                if (progressOverlay) {
+                    progressOverlay.classList.remove('hidden');
+                }
+                if (statsProgress) {
+                    statsProgress.classList.remove('hidden');
+                }
+                
+                // Pobierz aktualną datę z panelu lub użyj dzisiejszej daty
+                const statsLabel = document.querySelector('.stats-label');
+                let reportDate = new Date();
+                
+                // Spróbuj wyciągnąć datę z labela "Transakcje z dnia: DD.MM.YYYY, HH:MM:SS"
+                const labelText = statsLabel ? statsLabel.textContent : '';
+                if (labelText.includes('Transakcje z dnia:')) {
+                    const dateMatch = labelText.match(/(\d{2}\.\d{2}\.\d{4})/);
+                    if (dateMatch) {
+                        const [day, month, year] = dateMatch[1].split('.');
+                        reportDate = new Date(year, month - 1, day);
+                    }
+                }
+                
+                const dateStr = `${String(reportDate.getDate()).padStart(2, '0')}.${String(reportDate.getMonth() + 1).padStart(2, '0')}.${reportDate.getFullYear()}`;
+                const dateStrForAPI = `${reportDate.getFullYear()}-${String(reportDate.getMonth() + 1).padStart(2, '0')}-${String(reportDate.getDate()).padStart(2, '0')}`;
+                
+                // Pobierz transakcje z wybranego dnia
+                const response = await fetch(`${API_BASE}/api/platnosci/by-date?date=${dateStrForAPI}`);
+                const data = await response.json();
+                const transactions = data.transactions || [];
+                
+                if (transactions.length === 0) {
+                    alert('Brak transakcji do wygenerowania raportu dla wybranego dnia.');
+                    // Ukryj progress
+                    if (progressOverlay) {
+                        progressOverlay.classList.add('hidden');
+                    }
+                    if (statsProgress) {
+                        statsProgress.classList.add('hidden');
+                    }
+                    return;
+                }
+                
+                // Oblicz sumę
+                let suma = 0;
+                transactions.forEach(transaction => {
+                    const kwotaStr = (transaction.KWOTA || '0').replace(',', '.');
+                    try {
+                        suma += parseFloat(kwotaStr);
+                    } catch (e) {
+                        console.error('Błąd parsowania kwoty:', kwotaStr);
+                    }
+                });
+                
+                // Załaduj bibliotekę jsPDF dynamicznie
+                if (typeof window.jsPDF === 'undefined') {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+                    script.onload = async () => {
+                        await loadFontForPDF();
+                        generatePDF(transactions, suma, dateStr);
+                        // Ukryj progress
+                        if (progressOverlay) {
+                            progressOverlay.classList.add('hidden');
+                        }
+                        if (statsProgress) {
+                            statsProgress.classList.add('hidden');
+                        }
+                    };
+                    document.head.appendChild(script);
+                } else {
+                    await loadFontForPDF();
+                    generatePDF(transactions, suma, dateStr);
+                    // Ukryj progress
+                    if (progressOverlay) {
+                        progressOverlay.classList.add('hidden');
+                    }
+                    if (statsProgress) {
+                        statsProgress.classList.add('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error('Błąd podczas generowania raportu:', error);
+                alert('Wystąpił błąd podczas generowania raportu.');
+                // Ukryj progress w przypadku błędu
+                if (progressOverlay) {
+                    progressOverlay.classList.add('hidden');
+                }
+                if (statsProgress) {
+                    statsProgress.classList.add('hidden');
+                }
+            }
+        }
+
+        // Funkcja do ładowania czcionki z polskimi znakami
+        async function loadFontForPDF() {
+            if (window.pdfFontLoaded) return;
+            
+            try {
+                // jsPDF domyślnie obsługuje UTF-8, ale może wymagać specjalnego kodowania
+                // Użyjemy standardowej czcionki Helvetica z UTF-8
+                window.pdfFontLoaded = true;
+            } catch (error) {
+                console.error('Błąd podczas ładowania czcionki:', error);
+            }
+        }
+
+        function generatePDF(transactions, suma, dateStr) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Użyj czcionki Helvetica (najbliższa Arial w jsPDF)
+            doc.setFont('helvetica');
+            
+            // Funkcja pomocnicza do bezpiecznego wyświetlania tekstu z polskimi znakami
+            const safeText = (text) => {
+                // Zamień polskie znaki na bezpieczne odpowiedniki lub użyj UTF-8
+                return text
+                    .replace(/ł/g, 'l')
+                    .replace(/Ł/g, 'L')
+                    .replace(/ą/g, 'a')
+                    .replace(/ć/g, 'c')
+                    .replace(/ę/g, 'e')
+                    .replace(/ń/g, 'n')
+                    .replace(/ó/g, 'o')
+                    .replace(/ś/g, 's')
+                    .replace(/ź/g, 'z')
+                    .replace(/ż/g, 'z');
+            };
+            
+            // Funkcja do formatowania kwoty z PLN
+            const formatPriceForPDF = (value) => {
+                const formatted = formatPrice(value);
+                // Dodaj " PLN" na końcu (formatPrice zwraca tylko liczbę)
+                return formatted + ' PLN';
+            };
+            
+            // Nagłówek
+            doc.setFontSize(18);
+            doc.text('Raport dzienny transakcji', 105, 20, { align: 'center' });
+            
+            doc.setFontSize(12);
+            doc.text(`Data: ${dateStr}`, 105, 30, { align: 'center' });
+            
+            // Tabela transakcji
+            let yPos = 50;
+            const pageHeight = doc.internal.pageSize.height;
+            const lineHeight = 8;
+            const margin = 20;
+            const lpColRight = margin + 15; // Prawa krawędź kolumny LP
+            const kwotaColRight = 190; // Prawa krawędź kolumny Kwota
+            
+            // Nagłówki kolumn
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.text('LP', lpColRight, yPos, { align: 'right' });
+            doc.text('Data', margin + 20, yPos);
+            doc.text('Badania', margin + 70, yPos);
+            doc.text('Kwota', kwotaColRight, yPos, { align: 'right' });
+            
+            yPos += lineHeight;
+            doc.setDrawColor(200, 200, 200);
+            doc.line(margin, yPos, 190, yPos);
+            yPos += 5;
+            
+            // Wiersze transakcji
+            doc.setFont('helvetica', 'normal');
+            transactions.forEach((transaction, index) => {
+                // Sprawdź czy potrzeba nowej strony
+                if (yPos > pageHeight - 40) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                const lp = index + 1;
+                let data = transaction.DATA || '';
+                // Usuń przecinek i sformatuj datę: DD.MM.YYYY HH:MM
+                // Format wejściowy: "DD.MM.YYYY, HH:MM:SS" -> wyjściowy: "DD.MM.YYYY HH:MM"
+                data = data.replace(',', ' '); // Zamień przecinek na spację
+                // Wyciągnij datę i czas (godzina:minuta)
+                const dateMatch = data.match(/(\d{2}\.\d{2}\.\d{4})\s+(\d{2}):(\d{2})/);
+                if (dateMatch) {
+                    data = `${dateMatch[1]} ${dateMatch[2]}:${dateMatch[3]}`;
+                } else {
+                    // Fallback - po prostu usuń przecinek
+                    data = data.replace(',', ' ');
+                }
+                const badania = transaction.BADANIA || '';
+                const kwotaValue = parseFloat((transaction.KWOTA || '0').replace(',', '.'));
+                const kwota = formatPriceForPDF(kwotaValue);
+                
+                // LP - wyrównane do prawej
+                doc.text(lp.toString(), lpColRight, yPos, { align: 'right' });
+                // Data - wyrównane do lewej (pokazuj pełną datę i czas)
+                doc.text(data, margin + 20, yPos);
+                // Badania - wyrównane do lewej
+                const badaniaShort = badania.length > 30 ? badania.substring(0, 27) + '...' : badania;
+                doc.text(badaniaShort, margin + 70, yPos);
+                // Kwota - wyrównane do prawej (użyj prawidłowej pozycji)
+                doc.text(kwota, kwotaColRight, yPos, { align: 'right' });
+                
+                yPos += lineHeight;
+            });
+            
+            // Linia przed sumą
+            yPos += 5;
+            doc.setDrawColor(200, 200, 200);
+            doc.line(margin, yPos, 190, yPos);
+            yPos += 10;
+            
+            // Suma
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            const sumaText = `Suma wszystkich transakcji: ${formatPriceForPDF(suma)}`;
+            doc.text(sumaText, margin, yPos);
+            
+            // Stopka
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Strona ${i} z ${totalPages}`, 105, pageHeight - 10, { align: 'center' });
+            }
+            
+            // Zapisz PDF
+            const fileName = `raport_dzienny_${dateStr.replace(/\./g, '_')}.pdf`;
+            doc.save(fileName);
+        }
     </script>
 </body>
 </html>
