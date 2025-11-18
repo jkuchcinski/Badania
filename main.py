@@ -8,7 +8,7 @@ from pydantic import BaseModel, validator
 import csv
 import os
 import io
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 import pytz
 
@@ -151,9 +151,11 @@ async def search_badania(request: Request):
     
     return {"badania": results}
 
-def load_full_csv() -> List[Dict]:
-    """Wczytuje pełne dane CSV (wszystkie wiersze)"""
+def load_full_csv() -> Tuple[List[Dict], Optional[int]]:
+    """Wczytuje pełne dane CSV (wszystkie wiersze)
+    Zwraca tuple: (lista badań, generation number dla optimistic locking)"""
     csv_content = None
+    generation = None
     
     # Próbuj pobrać z Google Cloud Storage
     storage_client = get_storage_client()
@@ -161,6 +163,9 @@ def load_full_csv() -> List[Dict]:
         try:
             bucket = storage_client.bucket(BUCKET_NAME)
             blob = bucket.blob(CSV_FILE_NAME)
+            # Pobierz generation number dla optimistic locking
+            blob.reload()
+            generation = blob.generation
             csv_content = blob.download_as_text(encoding='utf-8')
         except Exception as e:
             print(f"Błąd podczas pobierania z Cloud Storage: {e}")
@@ -171,17 +176,17 @@ def load_full_csv() -> List[Dict]:
             with open(CSV_FILE, 'r', encoding='utf-8') as f:
                 csv_content = f.read()
         else:
-            return []
+            return [], None
     
     # Parsuj CSV
     csv_io = io.StringIO(csv_content)
     reader = csv.DictReader(csv_io, delimiter=';')
-    return list(reader)
+    return list(reader), generation
 
 @app.get("/api/badania/edit")
 async def get_badania_for_edit():
     """Zwraca wszystkie badania do edycji"""
-    badania = load_full_csv()
+    badania, _ = load_full_csv()  # Ignoruj generation number dla odczytu
     # Konwertuj nazwy kolumn dla frontendu
     result = []
     for row in badania:
@@ -245,57 +250,107 @@ class BadaniaUpdate(BaseModel):
 
 @app.post("/api/badania/save")
 async def save_badania(data: BadaniaUpdate):
-    """Zapisuje badania do Cloud Storage lub lokalnie"""
-    try:
-        # Filtruj puste wiersze (bez nazwy badania)
-        valid_badania = [row for row in data.badania if row.NAZWA_BADANIA and row.NAZWA_BADANIA.strip()]
-        
-        # Walidacja unikalności KOD (tylko dla niepustych kodów)
-        kody = [row.KOD for row in valid_badania if row.KOD and row.KOD.strip()]
-        if len(kody) != len(set(kody)):
-            raise HTTPException(status_code=400, detail="KOD musi być unikalny dla każdego badania")
-        
-        # Przygotuj dane do zapisu
-        output = io.StringIO()
-        writer = csv.writer(output, delimiter=';')
-        
-        # Nagłówek
-        writer.writerow(['KOD', 'NAZWA BADANIA', 'KWOTA', 'KWOTA 2'])
-        
-        # Wiersze danych
-        for row in valid_badania:
-            writer.writerow([
-                row.KOD or "",
-                row.NAZWA_BADANIA or "",
-                row.KWOTA or "",
-                row.KWOTA_2 or ""
-            ])
-        
-        csv_content = output.getvalue()
-        
-        # Próbuj zapisać do Cloud Storage
-        storage_client = get_storage_client()
-        if storage_client:
-            try:
-                bucket = storage_client.bucket(BUCKET_NAME)
-                blob = bucket.blob(CSV_FILE_NAME)
-                blob.upload_from_string(csv_content, content_type='text/csv')
-                return {"success": True, "message": "Dane zostały zapisane do Cloud Storage"}
-            except Exception as e:
-                print(f"Błąd podczas zapisu do Cloud Storage: {e}")
-                # Fallback do lokalnego zapisu
-        
-        # Jeśli Cloud Storage nie jest dostępny lub wystąpił błąd, zapisz lokalnie
+    """Zapisuje badania do Cloud Storage lub lokalnie
+    Używa optimistic locking z generation numbers aby zapobiec race conditions"""
+    max_retries = 5
+    retry_count = 0
+    
+    while retry_count < max_retries:
         try:
-            with open(CSV_FILE, 'w', encoding='utf-8') as f:
-                f.write(csv_content)
-            return {"success": True, "message": "Dane zostały zapisane lokalnie"}
+            # Wczytaj aktualny stan pliku z generation number
+            _, generation = load_full_csv()
+            
+            # Filtruj puste wiersze (bez nazwy badania)
+            valid_badania = [row for row in data.badania if row.NAZWA_BADANIA and row.NAZWA_BADANIA.strip()]
+            
+            # Walidacja unikalności KOD (tylko dla niepustych kodów)
+            kody = [row.KOD for row in valid_badania if row.KOD and row.KOD.strip()]
+            if len(kody) != len(set(kody)):
+                raise HTTPException(status_code=400, detail="KOD musi być unikalny dla każdego badania")
+            
+            # Przygotuj dane do zapisu
+            output = io.StringIO()
+            writer = csv.writer(output, delimiter=';')
+            
+            # Nagłówek
+            writer.writerow(['KOD', 'NAZWA BADANIA', 'KWOTA', 'KWOTA 2'])
+            
+            # Wiersze danych
+            for row in valid_badania:
+                writer.writerow([
+                    row.KOD or "",
+                    row.NAZWA_BADANIA or "",
+                    row.KWOTA or "",
+                    row.KWOTA_2 or ""
+                ])
+            
+            csv_content = output.getvalue()
+            
+            # Próbuj zapisać do Cloud Storage z optimistic locking
+            storage_client = get_storage_client()
+            if storage_client:
+                try:
+                    bucket = storage_client.bucket(BUCKET_NAME)
+                    blob = bucket.blob(CSV_FILE_NAME)
+                    
+                    # Jeśli mamy generation number, użyj go do optimistic locking
+                    if generation is not None:
+                        # Ustaw generation precondition - zapis się powiedzie tylko jeśli plik nie został zmieniony
+                        blob.upload_from_string(
+                            csv_content, 
+                            content_type='text/csv',
+                            if_generation_match=generation
+                        )
+                    else:
+                        # Pierwszy zapis lub lokalny fallback
+                        blob.upload_from_string(csv_content, content_type='text/csv')
+                    
+                    return {"success": True, "message": "Dane zostały zapisane do Cloud Storage"}
+                except Exception as e:
+                    error_str = str(e)
+                    error_code = getattr(e, 'code', None) if hasattr(e, 'code') else None
+                    # Sprawdź czy to błąd generation mismatch (412 Precondition Failed)
+                    # Google Cloud Storage zwraca 412 gdy if_generation_match się nie zgadza
+                    if (error_code == 412 or 
+                        "412" in error_str or 
+                        "Precondition" in error_str or 
+                        "generation" in error_str.lower() or
+                        "conditionNotMet" in error_str):
+                        # Plik został zmieniony przez innego użytkownika - spróbuj ponownie
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            import time
+                            time.sleep(0.1 * retry_count)  # Exponential backoff
+                            continue
+                        else:
+                            raise HTTPException(
+                                status_code=409, 
+                                detail="Plik został zmieniony przez innego użytkownika. Odśwież dane i spróbuj ponownie."
+                            )
+                    else:
+                        print(f"Błąd podczas zapisu do Cloud Storage: {e}")
+                        # Fallback do lokalnego zapisu
+                        break
+            
+            # Jeśli Cloud Storage nie jest dostępny lub wystąpił błąd, zapisz lokalnie
+            try:
+                with open(CSV_FILE, 'w', encoding='utf-8') as f:
+                    f.write(csv_content)
+                return {"success": True, "message": "Dane zostały zapisane lokalnie"}
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Błąd podczas zapisu do pliku lokalnego: {str(e)}")
+        except HTTPException:
+            raise
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Błąd podczas zapisu do pliku lokalnego: {str(e)}")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Błąd walidacji: {str(e)}")
+            if retry_count < max_retries - 1:
+                retry_count += 1
+                import time
+                time.sleep(0.1 * retry_count)
+                continue
+            raise HTTPException(status_code=400, detail=f"Błąd walidacji: {str(e)}")
+    
+    # Jeśli dotarliśmy tutaj, wszystkie próby się nie powiodły
+    raise HTTPException(status_code=500, detail="Nie udało się zapisać danych po kilku próbach")
 
 class PlatnoscCreate(BaseModel):
     uid: str
@@ -304,9 +359,11 @@ class PlatnoscCreate(BaseModel):
     kwota: float
     uwagi: str = ""
 
-def load_platnosci() -> List[Dict]:
-    """Wczytuje dane z pliku platnosci.csv z Google Cloud Storage lub lokalnie"""
+def load_platnosci() -> Tuple[List[Dict], Optional[int]]:
+    """Wczytuje dane z pliku platnosci.csv z Google Cloud Storage lub lokalnie
+    Zwraca tuple: (lista płatności, generation number dla optimistic locking)"""
     csv_content = None
+    generation = None
     
     # Próbuj pobrać z Google Cloud Storage
     storage_client = get_storage_client()
@@ -314,6 +371,9 @@ def load_platnosci() -> List[Dict]:
         try:
             bucket = storage_client.bucket(BUCKET_NAME)
             blob = bucket.blob(PLATNOSCI_FILE_NAME)
+            # Pobierz generation number dla optimistic locking
+            blob.reload()
+            generation = blob.generation
             csv_content = blob.download_as_text(encoding='utf-8')
         except Exception as e:
             print(f"Błąd podczas pobierania platnosci.csv z Cloud Storage: {e}")
@@ -325,79 +385,126 @@ def load_platnosci() -> List[Dict]:
             with open(PLATNOSCI_FILE, 'r', encoding='utf-8') as f:
                 csv_content = f.read()
         else:
-            return []
+            return [], None
     
     # Parsuj CSV
     csv_io = io.StringIO(csv_content)
     reader = csv.DictReader(csv_io, delimiter=';')
-    return list(reader)
+    return list(reader), generation
 
 @app.post("/api/platnosci/save")
 async def save_platnosc(data: PlatnoscCreate):
-    """Zapisuje płatność do pliku platnosci.csv w Cloud Storage lub lokalnie"""
-    try:
-        # Wczytaj istniejące płatności
-        existing_platnosci = load_platnosci()
-        
-        # Dodaj nową płatność
-        new_row = {
-            'UID': data.uid,
-            'DATA': data.data,
-            'BADANIA': data.badania,
-            'KWOTA': str(data.kwota).replace('.', ','),
-            'UWAGI': data.uwagi
-        }
-        existing_platnosci.append(new_row)
-        
-        # Przygotuj dane do zapisu
-        output = io.StringIO()
-        writer = csv.writer(output, delimiter=';')
-        
-        # Nagłówek
-        writer.writerow(['UID', 'DATA', 'BADANIA', 'KWOTA', 'UWAGI'])
-        
-        # Wiersze danych
-        for row in existing_platnosci:
-            writer.writerow([
-                row.get('UID', ''),
-                row.get('DATA', ''),
-                row.get('BADANIA', ''),
-                row.get('KWOTA', ''),
-                row.get('UWAGI', '')
-            ])
-        
-        csv_content = output.getvalue()
-        
-        # Próbuj zapisać do Cloud Storage
-        storage_client = get_storage_client()
-        if storage_client:
-            try:
-                bucket = storage_client.bucket(BUCKET_NAME)
-                blob = bucket.blob(PLATNOSCI_FILE_NAME)
-                blob.upload_from_string(csv_content, content_type='text/csv')
-                return {"success": True, "message": "Płatność została zapisana do Cloud Storage"}
-            except Exception as e:
-                print(f"Błąd podczas zapisu do Cloud Storage: {e}")
-                # Fallback do lokalnego zapisu
-        
-        # Jeśli Cloud Storage nie jest dostępny lub wystąpił błąd, zapisz lokalnie
+    """Zapisuje płatność do pliku platnosci.csv w Cloud Storage lub lokalnie
+    Używa optimistic locking z generation numbers aby zapobiec race conditions"""
+    max_retries = 5
+    retry_count = 0
+    
+    while retry_count < max_retries:
         try:
-            with open(PLATNOSCI_FILE, 'w', encoding='utf-8') as f:
-                f.write(csv_content)
-            return {"success": True, "message": "Płatność została zapisana lokalnie"}
+            # Wczytaj istniejące płatności z generation number
+            existing_platnosci, generation = load_platnosci()
+            
+            # Dodaj nową płatność
+            new_row = {
+                'UID': data.uid,
+                'DATA': data.data,
+                'BADANIA': data.badania,
+                'KWOTA': str(data.kwota).replace('.', ','),
+                'UWAGI': data.uwagi
+            }
+            existing_platnosci.append(new_row)
+            
+            # Przygotuj dane do zapisu
+            output = io.StringIO()
+            writer = csv.writer(output, delimiter=';')
+            
+            # Nagłówek
+            writer.writerow(['UID', 'DATA', 'BADANIA', 'KWOTA', 'UWAGI'])
+            
+            # Wiersze danych
+            for row in existing_platnosci:
+                writer.writerow([
+                    row.get('UID', ''),
+                    row.get('DATA', ''),
+                    row.get('BADANIA', ''),
+                    row.get('KWOTA', ''),
+                    row.get('UWAGI', '')
+                ])
+            
+            csv_content = output.getvalue()
+            
+            # Próbuj zapisać do Cloud Storage z optimistic locking
+            storage_client = get_storage_client()
+            if storage_client:
+                try:
+                    bucket = storage_client.bucket(BUCKET_NAME)
+                    blob = bucket.blob(PLATNOSCI_FILE_NAME)
+                    
+                    # Jeśli mamy generation number, użyj go do optimistic locking
+                    if generation is not None:
+                        # Ustaw generation precondition - zapis się powiedzie tylko jeśli plik nie został zmieniony
+                        blob.upload_from_string(
+                            csv_content, 
+                            content_type='text/csv',
+                            if_generation_match=generation
+                        )
+                    else:
+                        # Pierwszy zapis lub lokalny fallback
+                        blob.upload_from_string(csv_content, content_type='text/csv')
+                    
+                    return {"success": True, "message": "Płatność została zapisana do Cloud Storage"}
+                except Exception as e:
+                    error_str = str(e)
+                    error_code = getattr(e, 'code', None) if hasattr(e, 'code') else None
+                    # Sprawdź czy to błąd generation mismatch (412 Precondition Failed)
+                    # Google Cloud Storage zwraca 412 gdy if_generation_match się nie zgadza
+                    if (error_code == 412 or 
+                        "412" in error_str or 
+                        "Precondition" in error_str or 
+                        "generation" in error_str.lower() or
+                        "conditionNotMet" in error_str):
+                        # Plik został zmieniony przez innego użytkownika - spróbuj ponownie
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            import time
+                            time.sleep(0.1 * retry_count)  # Exponential backoff
+                            continue
+                        else:
+                            raise HTTPException(
+                                status_code=409, 
+                                detail="Plik został zmieniony przez innego użytkownika. Spróbuj ponownie."
+                            )
+                    else:
+                        print(f"Błąd podczas zapisu do Cloud Storage: {e}")
+                        # Fallback do lokalnego zapisu
+                        break
+            
+            # Jeśli Cloud Storage nie jest dostępny lub wystąpił błąd, zapisz lokalnie
+            try:
+                with open(PLATNOSCI_FILE, 'w', encoding='utf-8') as f:
+                    f.write(csv_content)
+                return {"success": True, "message": "Płatność została zapisana lokalnie"}
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Błąd podczas zapisu do pliku lokalnego: {str(e)}")
+        except HTTPException:
+            raise
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Błąd podczas zapisu do pliku lokalnego: {str(e)}")
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Błąd podczas zapisu płatności: {str(e)}")
+            if retry_count < max_retries - 1:
+                retry_count += 1
+                import time
+                time.sleep(0.1 * retry_count)
+                continue
+            raise HTTPException(status_code=400, detail=f"Błąd podczas zapisu płatności: {str(e)}")
+    
+    # Jeśli dotarliśmy tutaj, wszystkie próby się nie powiodły
+    raise HTTPException(status_code=500, detail="Nie udało się zapisać płatności po kilku próbach")
 
 @app.get("/api/platnosci/stats")
 async def get_daily_stats():
     """Zwraca statystyki transakcji z dzisiejszego dnia"""
     try:
-        # Wczytaj wszystkie płatności
-        platnosci = load_platnosci()
+        # Wczytaj wszystkie płatności (ignoruj generation number dla odczytu)
+        platnosci, _ = load_platnosci()
         
         # Pobierz dzisiejszą datę w strefie czasowej Polski (DD.MM.YYYY)
         poland_tz = pytz.timezone('Europe/Warsaw')
@@ -448,8 +555,8 @@ async def get_daily_stats():
 async def get_platnosci_by_date(date: str):
     """Zwraca transakcje z wybranego dnia"""
     try:
-        # Wczytaj wszystkie płatności
-        platnosci = load_platnosci()
+        # Wczytaj wszystkie płatności (ignoruj generation number dla odczytu)
+        platnosci, _ = load_platnosci()
         
         # Konwertuj datę z formatu YYYY-MM-DD lub YYYY.MM.DD na DD.MM.YYYY
         date_str = date
