@@ -112,13 +112,20 @@
         }
 
         .app-container {
-            display: none;
+            display: none !important;
             max-width: 1400px;
             margin: 0 auto;
         }
 
         .app-container.active {
-            display: block;
+            display: block !important;
+        }
+
+        /* Panel logowania powinien być zawsze na wierzchu */
+        .login-container {
+            position: relative;
+            z-index: 10000;
+            background: white;
         }
 
         .main-content {
@@ -163,7 +170,7 @@
         }
 
         .panel-title {
-            font-size: 20px;
+            font-size: 24px;
             font-weight: 500;
             margin: 0;
             padding: 24px;
@@ -769,6 +776,21 @@
             max-width: 80px;
         }
 
+        /* Na desktopie ukryj ikony, pokaż tekst */
+        .add-button .material-icons,
+        .remove-button .material-icons,
+        .save-payment-button .material-icons,
+        .remove-all-button .material-icons {
+            display: none;
+        }
+
+        .add-button .button-text,
+        .remove-button .button-text,
+        .save-payment-button .button-text,
+        .remove-all-button .button-text {
+            display: inline;
+        }
+
         .add-button:hover {
             background: #2e7d32;
             box-shadow: 0 4px 8px rgba(0,0,0,0.3);
@@ -841,6 +863,24 @@
             padding-bottom: 5px;
             flex-shrink: 0;
             background: white;
+        }
+
+        /* Kontener dla paneli Suma i Transakcje - przezroczysty na desktop */
+        .bottom-panels-wrapper {
+            display: contents; /* Na desktopie kontener jest przezroczysty, panele działają normalnie */
+        }
+
+        /* Na mobile zmniejsz padding suma-wrapper */
+        @media screen and (max-width: 768px) {
+            .suma-wrapper {
+                margin-top: 0;
+                padding-bottom: 6px;
+            }
+
+            /* Kontener dla paneli Suma i Transakcje - widoczny jako flex na mobile */
+            .bottom-panels-wrapper {
+                display: flex;
+            }
         }
 
         .save-payment-button {
@@ -1023,6 +1063,652 @@
             font-style: italic;
             font-weight: 300;
         }
+
+        /* Wskaźniki swipe - ukryte na desktop */
+        .swipe-indicator {
+            display: none;
+        }
+
+        /* Responsywne style dla urządzeń mobilnych */
+        @media screen and (max-width: 768px) {
+            body {
+                padding: 0;
+                margin: 0;
+                overflow-x: hidden;
+                overflow-y: auto;
+            }
+
+            /* Panel logowania - pełna wysokość i szerokość na mobile */
+            .login-container {
+                max-width: 100%;
+                margin: 0;
+                padding: 24px 16px;
+                min-height: 100vh;
+                min-height: -webkit-fill-available;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                z-index: 10000;
+                overflow-y: auto;
+                background: #f5f5f5;
+            }
+
+            /* Upewnij się, że aplikacja jest ukryta gdy panel logowania jest widoczny */
+            .login-container:not([style*="display: none"]) ~ .app-container {
+                display: none !important;
+            }
+
+            .app-container {
+                max-width: 100%;
+                height: 100vh;
+                height: -webkit-fill-available; /* Safari fallback */
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .main-content {
+                flex-direction: row;
+                gap: 0;
+                height: 100vh;
+                height: -webkit-fill-available; /* Safari fallback */
+                position: relative;
+                overflow: hidden;
+                margin: 0;
+                padding: 0;
+                flex: 1;
+                min-height: 0;
+            }
+
+            .left-panel, .right-panel {
+                flex: none;
+                width: 100%;
+                height: 100%;
+                min-height: 0;
+                max-height: 100%;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+                position: absolute;
+                top: 0;
+                left: 0;
+                transition: transform 0.3s ease-in-out;
+            }
+
+            /* Prawy panel - taka sama wysokość jak lewy panel */
+            .right-panel {
+                overflow: hidden;
+            }
+
+            .right-panel .panel-title {
+                flex-shrink: 0;
+            }
+
+            .right-panel .selected-table-wrapper {
+                flex: 1;
+                min-height: 0;
+                overflow-y: auto;
+                overflow-x: auto;
+            }
+
+            /* Panel "Wszystkie badania" domyślnie widoczny */
+            .left-panel {
+                transform: translateX(0);
+                z-index: 1;
+            }
+
+            /* Panel "Wybrane badania" ukryty domyślnie */
+            .right-panel {
+                transform: translateX(100%);
+                z-index: 2;
+            }
+
+            /* Panel "Wybrane badania" widoczny po swipe */
+            .right-panel.active {
+                transform: translateX(0);
+            }
+
+            /* Panel "Wszystkie badania" ukryty po swipe */
+            .left-panel.hidden {
+                transform: translateX(-100%);
+            }
+
+            .panel-title {
+                padding: 10px 12px;
+                min-height: auto;
+                font-size: 22px;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            .panel-title span {
+                flex: 1;
+            }
+
+            /* Nagłówek "Wybrane badania" - przyciski obok tytułu */
+            .right-panel .panel-title {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .right-panel .panel-title span {
+                margin-bottom: 0;
+            }
+
+            /* Ukryj przycisk "Edytuj dane" w lewym panelu na urządzeniach mobilnych */
+            .left-panel .edit-button {
+                display: none;
+            }
+
+            /* Zastąp przyciski ikonami na urządzeniach mobilnych */
+            .add-button, .remove-button, .save-payment-button, .remove-all-button {
+                padding: 0;
+                width: 36px;
+                height: 36px;
+                min-width: 36px;
+                max-width: 36px;
+                border-radius: 4px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                overflow: hidden;
+            }
+
+            /* Ukryj tekst przycisków na mobile, pokaż ikony */
+            .add-button .button-text,
+            .remove-button .button-text,
+            .save-payment-button .button-text,
+            .remove-all-button .button-text {
+                display: none !important;
+            }
+
+            /* Pokaż ikony Material Icons w przyciskach na mobile */
+            .add-button .material-icons,
+            .remove-button .material-icons,
+            .save-payment-button .material-icons,
+            .remove-all-button .material-icons {
+                font-size: 22px !important;
+                color: white !important;
+                line-height: 1;
+                display: inline-block !important;
+            }
+
+            /* Wskaźniki swipe - tylko na urządzeniach mobilnych */
+            .swipe-indicator {
+                position: fixed;
+                bottom: 10px;
+                left: 50%;
+                transform: translateX(-50%);
+                display: flex;
+                gap: 8px;
+                z-index: 100;
+                pointer-events: none;
+            }
+
+            .swipe-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: rgba(0, 0, 0, 0.3);
+                transition: background 0.3s;
+                cursor: pointer;
+            }
+
+            .swipe-dot.active {
+                background: #1976d2;
+            }
+
+            .panel-title > div {
+                display: flex;
+                gap: 8px;
+                flex-wrap: nowrap;
+            }
+
+            .panel-title > div button {
+                flex: none;
+                min-width: auto;
+            }
+
+            /* Przyciski w nagłówku "Wybrane badania" - kwadratowe, obok siebie */
+            .right-panel .panel-title > div {
+                display: flex;
+                gap: 8px;
+            }
+
+            .right-panel .save-payment-button,
+            .right-panel .remove-all-button {
+                width: 36px;
+                height: 36px;
+                min-width: 36px;
+                max-width: 36px;
+            }
+
+            .search-container {
+                padding: 8px 12px;
+            }
+
+            .search-input {
+                font-size: 16px;
+                padding: 12px;
+            }
+
+            .left-panel-table-wrapper, .selected-table-wrapper {
+                padding: 0;
+                overflow-x: auto;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                flex: 1;
+                min-height: 0;
+                display: flex;
+                flex-direction: column;
+            }
+
+            /* Tabela w lewym panelu - rozszerzona do końca ekranu */
+            .left-panel-table-wrapper {
+                padding: 0;
+            }
+
+            .left-panel-table-wrapper table,
+            .selected-table-wrapper table {
+                width: 100%;
+            }
+
+            /* Tabela wybranych badań - tekst "Brak wybranych badań" na górze pod nagłówkiem */
+            .selected-table-wrapper .results-table {
+                display: table;
+            }
+
+            .selected-table-wrapper .results-table tbody tr td.empty-message {
+                padding-top: 8px;
+                padding-bottom: 0;
+            }
+
+            .results-table {
+                font-size: 16px;
+                width: 100%;
+                min-width: 600px;
+            }
+
+            .results-table th, .results-table td {
+                padding: 10px 8px;
+                font-size: 16px;
+            }
+
+            /* Ukryj kolumnę "Kwota" w tabeli wszystkich badań na urządzeniach mobilnych */
+            #allBadaniaTable th:nth-child(3),
+            #allBadaniaTable td:nth-child(3) {
+                display: none;
+            }
+
+            #allBadaniaTable {
+                min-width: 400px;
+            }
+
+            /* Tabela wybranych badań - taka sama szerokość jak wszystkie badania */
+            #selectedTable {
+                min-width: 400px;
+                width: 100%;
+            }
+
+            /* Ukryj kolumnę "Kwota" w tabeli wybranych badań na urządzeniach mobilnych */
+            #selectedTable th:nth-child(3),
+            #selectedTable td:nth-child(3) {
+                display: none;
+            }
+
+            /* Zmniejsz szerokość kolumny "Nazwa badania" w tabeli wybranych badań */
+            #selectedTable th:nth-child(2),
+            #selectedTable td:nth-child(2) {
+                max-width: 150px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            /* Wyśrodkuj przyciski "Usuń" w kolumnie "Akcja" w tabeli wybranych badań */
+            #selectedTable th:nth-child(5),
+            #selectedTable td:nth-child(5) {
+                text-align: center;
+            }
+
+            #selectedTable td:nth-child(5) button {
+                margin: 0 auto;
+            }
+
+            .add-button {
+                padding: 5px 8px;
+                font-size: 10px;
+                width: 50px;
+                min-width: 50px;
+                max-width: 50px;
+            }
+
+            .remove-button {
+                padding: 5px 8px;
+                font-size: 10px;
+            }
+
+            .quantity-input {
+                width: 55px;
+                padding: 6px;
+                font-size: 14px;
+            }
+
+            /* Prawy panel - suma i stats na dole */
+            .right-panel {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .selected-table-wrapper {
+                flex: 1;
+                min-height: 0;
+            }
+
+            .suma-wrapper {
+                padding: 6px 12px;
+                margin-top: auto;
+                flex-shrink: 0;
+            }
+
+            .suma-container {
+                padding: 8px;
+            }
+
+            .suma-label {
+                font-size: 14px;
+            }
+
+            .suma-value {
+                font-size: 18px;
+            }
+
+            /* Kontener dla paneli Suma i Transakcje z dnia */
+            .bottom-panels-wrapper {
+                margin-top: auto;
+                flex-shrink: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 0;
+            }
+
+            /* Panel "Suma wybranych badań" */
+            .suma-wrapper {
+                padding: 10px 12px;
+                margin-top: 0;
+                flex-shrink: 0;
+            }
+
+            .suma-container {
+                padding: 12px;
+            }
+
+            .suma-label {
+                font-size: 18px;
+            }
+
+            .suma-value {
+                font-size: 22px;
+            }
+
+            /* Panel "Transakcje z dnia" */
+            .stats-wrapper {
+                padding: 10px 12px;
+                margin-top: 0;
+                flex-shrink: 0;
+            }
+
+            .stats-container {
+                padding: 12px;
+            }
+
+            .stats-label {
+                font-size: 16px;
+            }
+
+            .stats-item-value {
+                font-size: 20px;
+            }
+
+            .stats-item-label {
+                font-size: 15px;
+            }
+
+            .stats-container .material-icons {
+                font-size: 20px !important;
+            }
+
+            /* Modal na pełnym ekranie na urządzeniach mobilnych */
+            .modal-overlay {
+                padding: 0;
+            }
+
+            .modal-content {
+                width: 100vw;
+                height: 100vh;
+                max-width: 100vw;
+                max-height: 100vh;
+                border-radius: 0;
+                margin: 0;
+            }
+
+            .modal-header {
+                padding: 10px 12px;
+            }
+
+            .modal-header h2 {
+                font-size: 16px;
+            }
+
+            .close-button, .save-button, .add-row-button {
+                padding: 6px 12px;
+                font-size: 11px;
+            }
+
+            .modal-header-buttons {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            #editTableContainer {
+                padding: 0 6px 10px 6px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .edit-table {
+                font-size: 11px;
+                min-width: 650px;
+            }
+
+            .edit-table th, .edit-table td {
+                padding: 6px 4px;
+                font-size: 11px;
+            }
+
+            .edit-table input {
+                font-size: 11px;
+                padding: 5px;
+            }
+
+            /* Transakcje modal na urządzeniach mobilnych */
+            #transactionsModal .modal-content {
+                flex-direction: column;
+            }
+
+            #transactionsModal .calendar-container {
+                padding: 6px;
+                flex-shrink: 0;
+            }
+
+            #transactionsModal .calendar {
+                font-size: 10px;
+            }
+
+            #transactionsModal .calendar-day {
+                padding: 5px 2px;
+                font-size: 9px;
+            }
+
+            #transactionsModal .date-picker-container {
+                padding: 6px;
+                flex-shrink: 0;
+            }
+
+            #transactionsModal .date-picker-container input {
+                font-size: 13px;
+                padding: 8px;
+            }
+
+            #transactionsModal .transactions-tables-container {
+                flex-direction: column;
+                gap: 8px;
+                flex: 1;
+                min-height: 0;
+            }
+
+            #transactionsModal .master-table-container,
+            #transactionsModal .detail-table-container {
+                flex: 1;
+                min-height: 200px;
+                max-height: 300px;
+                overflow: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            #transactionsModal .master-table,
+            #transactionsModal .detail-table {
+                font-size: 11px;
+                min-width: 100%;
+            }
+
+            #transactionsModal .master-table {
+                min-width: 500px;
+            }
+
+            #transactionsModal .detail-table {
+                min-width: 400px;
+            }
+
+            #transactionsModal .master-table th,
+            #transactionsModal .master-table td,
+            #transactionsModal .detail-table th,
+            #transactionsModal .detail-table td {
+                padding: 5px 3px;
+                font-size: 10px;
+            }
+
+            #transactionsModal .day-stats-panel {
+                padding: 10px;
+                margin-top: 6px;
+                flex-shrink: 0;
+            }
+
+            #transactionsModal .day-stats-panel > div {
+                font-size: 12px;
+            }
+
+            .copyright {
+                margin-top: 16px;
+                padding-top: 12px;
+                font-size: 10px;
+            }
+        }
+
+        /* Style dla bardzo małych ekranów (telefony w orientacji pionowej) */
+        @media screen and (max-width: 480px) {
+            body {
+                padding: 3px;
+            }
+
+            .login-container {
+                margin: 15px auto;
+                padding: 20px 12px;
+            }
+
+            .main-content {
+                gap: 5px;
+            }
+
+            .left-panel, .right-panel {
+                height: 100%;
+            }
+
+            .panel-title {
+                font-size: 20px;
+                padding: 8px 10px;
+            }
+
+            .panel-title > div button {
+                min-width: calc(50% - 4px);
+                font-size: 10px;
+                padding: 5px 10px;
+            }
+
+            .results-table {
+                font-size: 15px;
+                min-width: 400px;
+            }
+
+            .results-table th, .results-table td {
+                padding: 8px 6px;
+                font-size: 15px;
+            }
+
+            #allBadaniaTable {
+                min-width: 350px;
+            }
+
+            #selectedTable {
+                min-width: 350px;
+            }
+
+            /* Zmniejsz szerokość kolumny "Nazwa badania" w tabeli wybranych badań na małych ekranach */
+            #selectedTable th:nth-child(2),
+            #selectedTable td:nth-child(2) {
+                max-width: 120px;
+            }
+
+            .suma-value {
+                font-size: 14px;
+            }
+
+            .stats-item-value {
+                font-size: 14px;
+            }
+
+            .modal-header h2 {
+                font-size: 14px;
+            }
+
+            .edit-table {
+                font-size: 10px;
+                min-width: 600px;
+            }
+
+            .edit-table th, .edit-table td {
+                padding: 5px 3px;
+                font-size: 10px;
+            }
+
+            #transactionsModal .calendar-day {
+                padding: 3px 1px;
+                font-size: 8px;
+            }
+
+            #transactionsModal .master-table,
+            #transactionsModal .detail-table {
+                font-size: 9px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1044,7 +1730,7 @@
     <!-- Główna aplikacja -->
     <div class="app-container" id="appContainer">
         <div class="progress-overlay hidden" id="progressOverlay"></div>
-        <div class="main-content">
+        <div class="main-content" id="mainContent">
             <!-- Lewy panel - wszystkie badania z filtrem -->
             <div class="left-panel">
                 <div class="progress-container hidden" id="allBadaniaProgress">
@@ -1085,10 +1771,12 @@
                     <span>Wybrane badania</span>
                     <div style="display: flex; gap: 10px;">
                         <button class="save-payment-button" id="savePaymentButton" onclick="savePayment()" disabled>
-                            Zapisz płatność
+                            <span class="material-icons">save</span>
+                            <span class="button-text">Zapisz płatność</span>
                         </button>
                         <button class="remove-all-button" id="removeAllButton" onclick="removeAllBadania()" disabled>
-                            Usuń wszystkie
+                            <span class="material-icons">delete_sweep</span>
+                            <span class="button-text">Usuń wszystkie</span>
                         </button>
                     </div>
                 </div>
@@ -1110,14 +1798,15 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="suma-wrapper">
-                    <div class="suma-container">
-                        <div class="suma-label">Suma wybranych badań:</div>
-                        <div class="suma-value" id="sumaValue">0,00 zł</div>
+                <div class="bottom-panels-wrapper">
+                    <div class="suma-wrapper">
+                        <div class="suma-container">
+                            <div class="suma-label">Suma wybranych badań:</div>
+                            <div class="suma-value" id="sumaValue">0,00 zł</div>
+                        </div>
                     </div>
-                </div>
-                <div class="stats-wrapper">
-                    <div class="stats-container">
+                    <div class="stats-wrapper">
+                        <div class="stats-container">
                         <div class="stats-progress hidden" id="statsProgress">
                             <div class="stats-progress-bar"></div>
                         </div>
@@ -1140,8 +1829,14 @@
                             </div>
                         </div>
                     </div>
+                    </div>
                 </div>
             </div>
+        </div>
+        <!-- Wskaźniki swipe (tylko na urządzeniach mobilnych) -->
+        <div class="swipe-indicator" id="swipeIndicator">
+            <div class="swipe-dot active" data-panel="left"></div>
+            <div class="swipe-dot" data-panel="right"></div>
         </div>
     </div>
 
@@ -1270,6 +1965,97 @@
         let currentSort = { column: 'nazwa', direction: 'asc' };
 
         // Logowanie
+        // Obsługa gestów swipe na urządzeniach mobilnych
+        let touchStartX = 0;
+        let touchEndX = 0;
+        let currentPanel = 'left'; // 'left' lub 'right'
+
+        function showPanel(panel) {
+            const leftPanel = document.querySelector('.left-panel');
+            const rightPanel = document.querySelector('.right-panel');
+            const swipeIndicator = document.getElementById('swipeIndicator');
+            const dots = swipeIndicator ? swipeIndicator.querySelectorAll('.swipe-dot') : [];
+
+            if (window.innerWidth <= 768) {
+                if (panel === 'left') {
+                    leftPanel.classList.remove('hidden');
+                    rightPanel.classList.remove('active');
+                    currentPanel = 'left';
+                } else {
+                    leftPanel.classList.add('hidden');
+                    rightPanel.classList.add('active');
+                    currentPanel = 'right';
+                }
+
+                // Aktualizuj wskaźniki
+                dots.forEach((dot, index) => {
+                    if ((panel === 'left' && index === 0) || (panel === 'right' && index === 1)) {
+                        dot.classList.add('active');
+                    } else {
+                        dot.classList.remove('active');
+                    }
+                });
+            }
+        }
+
+        function handleSwipe() {
+            if (window.innerWidth > 768) return; // Tylko na urządzeniach mobilnych
+
+            const swipeDistance = touchEndX - touchStartX;
+            const minSwipeDistance = 50; // Minimalna odległość dla uznania gestu jako swipe
+
+            if (Math.abs(swipeDistance) > minSwipeDistance) {
+                if (swipeDistance > 0 && currentPanel === 'right') {
+                    // Swipe w prawo - pokaż lewy panel
+                    showPanel('left');
+                } else if (swipeDistance < 0 && currentPanel === 'left') {
+                    // Swipe w lewo - pokaż prawy panel
+                    showPanel('right');
+                }
+            }
+        }
+
+        // Dodaj event listenery dla gestów swipe
+        const mainContent = document.getElementById('mainContent');
+        if (mainContent) {
+            mainContent.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+
+            mainContent.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe();
+            }, { passive: true });
+        }
+
+        // Ukryj wskaźniki swipe na desktop
+        function updateSwipeIndicators() {
+            const swipeIndicator = document.getElementById('swipeIndicator');
+            if (swipeIndicator) {
+                if (window.innerWidth <= 768) {
+                    swipeIndicator.style.display = 'flex';
+                } else {
+                    swipeIndicator.style.display = 'none';
+                }
+            }
+        }
+
+        window.addEventListener('resize', updateSwipeIndicators);
+        updateSwipeIndicators();
+
+        // Upewnij się, że aplikacja jest ukryta na starcie
+        (function() {
+            const loginContainer = document.getElementById('loginContainer');
+            const appContainer = document.getElementById('appContainer');
+            if (loginContainer && appContainer) {
+                // Panel logowania powinien być widoczny, aplikacja ukryta
+                if (loginContainer.style.display !== 'none') {
+                    appContainer.style.display = 'none';
+                    appContainer.classList.remove('active');
+                }
+            }
+        })();
+
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const password = document.getElementById('passwordInput').value;
@@ -1287,6 +2073,17 @@
                 if (response.ok) {
                     document.getElementById('loginContainer').style.display = 'none';
                     document.getElementById('appContainer').classList.add('active');
+                    // Przewiń do góry po logowaniu (szczególnie ważne na urządzeniach mobilnych)
+                    window.scrollTo(0, 0);
+                    document.body.scrollTop = 0;
+                    document.documentElement.scrollTop = 0;
+                    // Upewnij się, że pole wyszukiwania jest widoczne (szczególnie na urządzeniach mobilnych)
+                    setTimeout(() => {
+                        const searchInput = document.getElementById('searchInput');
+                        if (searchInput && window.innerWidth <= 768) {
+                            searchInput.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    }, 100);
                     loadAllBadania();
                     loadDailyStats(); // Załaduj statystyki asynchronicznie
                 } else {
@@ -1416,7 +2213,8 @@
                             <button class="add-button" 
                                     onclick="addBadanieFromAll(${originalIndex})" 
                                     ${isSelected ? 'disabled' : ''}>
-                                ${isSelected ? 'Dodano' : 'Dodaj'}
+                                <span class="material-icons">${isSelected ? 'check' : 'add'}</span>
+                                <span class="button-text">${isSelected ? 'Dodano' : 'Dodaj'}</span>
                             </button>
                         </td>
                     </tr>
@@ -1481,14 +2279,7 @@
                 // Odśwież listę wszystkich badań, aby pokazać stan "Dodano"
                 displayAllBadania();
                 
-                // Przewiń do ostatniego wiersza w tabeli wybranych badań
-                setTimeout(() => {
-                    const selectedTableBody = document.getElementById('selectedTableBody');
-                    const lastRow = selectedTableBody.querySelector('tr:last-child');
-                    if (lastRow) {
-                        lastRow.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                    }
-                }, 100);
+                // NIE przełączaj automatycznie do panelu "Wybrane badania" na urządzeniach mobilnych
             }
         };
 
@@ -1517,6 +2308,7 @@
             const tbody = document.getElementById('selectedTableBody');
             const removeAllButton = document.getElementById('removeAllButton');
             const savePaymentButton = document.getElementById('savePaymentButton');
+            const rightPanel = document.querySelector('.right-panel');
             
             // Zawsze pokazuj przyciski, ale blokuj je jeśli nie ma danych
             const hasData = selectedBadania.length > 0;
@@ -1525,6 +2317,15 @@
             }
             if (savePaymentButton) {
                 savePaymentButton.disabled = !hasData;
+            }
+            
+            // Automatyczne rozszerzanie prawego panelu na urządzeniach mobilnych gdy są wybrane badania
+            if (rightPanel && window.innerWidth <= 768) {
+                if (hasData) {
+                    rightPanel.style.maxHeight = '70vh';
+                } else {
+                    rightPanel.style.maxHeight = '50vh';
+                }
             }
             
             if (selectedBadania.length === 0) {
@@ -1547,7 +2348,8 @@
                     </td>
                     <td>
                         <button class="remove-button" onclick="removeBadanie('${badanie.kod}')">
-                            Usuń
+                            <span class="material-icons">delete</span>
+                            <span class="button-text">Usuń</span>
                         </button>
                     </td>
                 </tr>
