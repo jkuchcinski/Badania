@@ -25,18 +25,30 @@ if [ ! -f "$MAIN_FILE" ]; then
     exit 1
 fi
 
-# Utwórz virtualenv jeśli nie istnieje
-if [ ! -d "$VENV_DIR" ]; then
+# Utwórz virtualenv jeśli nie istnieje lub napraw jeśli jest uszkodzone
+ACTIVATE_SCRIPT="$VENV_DIR/bin/activate"
+if [ ! -d "$VENV_DIR" ] || [ ! -f "$ACTIVATE_SCRIPT" ]; then
+    if [ -d "$VENV_DIR" ] && [ ! -f "$ACTIVATE_SCRIPT" ]; then
+        echo "⚠️  Środowisko wirtualne jest uszkodzone. Usuwanie i tworzenie nowego..."
+        rm -rf "$VENV_DIR"
+    fi
     echo "📦 Tworzenie środowiska wirtualnego..."
     $PYTHON_CMD -m venv $VENV_DIR
     echo "✅ Środowisko wirtualne utworzone"
+    
+    # Sprawdź ponownie czy plik aktywacji został utworzony
+    if [ ! -f "$ACTIVATE_SCRIPT" ]; then
+        echo "❌ Nie udało się utworzyć środowiska wirtualnego."
+        echo "❌ Sprawdź czy Python 3 jest poprawnie zainstalowany: $PYTHON_CMD --version"
+        exit 1
+    fi
 else
     echo "✅ Środowisko wirtualne już istnieje"
 fi
 
 # Aktywuj virtualenv
 echo "🔌 Aktywowanie środowiska wirtualnego..."
-source $VENV_DIR/bin/activate
+source "$ACTIVATE_SCRIPT"
 
 # Zaktualizuj pip
 echo "⬆️  Aktualizowanie pip..."
