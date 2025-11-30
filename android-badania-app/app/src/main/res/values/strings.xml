@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">BadaniaApp</string>
+    <string name="search">Wyszukiwanie</string>
+    <string name="selected">Wybrane</string>
+    <string name="search_placeholder">Szukaj badań…</string>
+    <string name="loading">Ładowanie badań…</string>
+    <string name="no_badania">Brak badań</string>
+    <string name="no_results">Nie znaleziono badań</string>
+    <string name="try_again">Spróbuj ponownie</string>
+    <string name="selected_badania_title">Wybrane badania</string>
+    <string name="no_selected_badania">Brak wybranych badań</string>
+    <string name="add_from_search">Dodaj badania z zakładki Wyszukiwanie</string>
+    <string name="delete_all">Usuń wszystkie</string>
+    <string name="sum_label">Suma wybranych badań:</string>
+    <string name="code_label">Kod:</string>
+    <string name="no_price">Brak ceny</string>
+    <string name="copyright">© 2025 Decent Code sp. z o.o.</string>
+    <string name="all_rights_reserved">All rights reserved</string>
+    <string name="error_loading">Błąd podczas wczytywania danych</string>
+</resources>
+
