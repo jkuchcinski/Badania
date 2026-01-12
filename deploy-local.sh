@@ -12,8 +12,8 @@ REGION="europe-west1"
 echo "🔧 Przełączanie na projekt Google Cloud..."
 gcloud config set project ${PROJECT_ID}
 
-echo "🔨 Budowanie obrazu Docker lokalnie..."
-docker build -t ${IMAGE_NAME} .
+echo "🔨 Budowanie obrazu Docker lokalnie (platform: linux/amd64)..."
+docker build --platform linux/amd64 -t ${IMAGE_NAME} .
 
 echo "🔐 Logowanie do Google Container Registry..."
 gcloud auth configure-docker
@@ -27,7 +27,8 @@ gcloud run deploy ${SERVICE_NAME} \
   --platform managed \
   --region ${REGION} \
   --allow-unauthenticated \
-  --port 8080
+  --port 8080 \
+  --set-env-vars ADMIN_PASSWORD=hipokrates,SECRET_KEY=GZ55q2jtgI3m6NL1hMd_HqlFGnTxNyxY8XJZzKy2e04
 
 echo "✅ Wdrożenie zakończone!"
 echo "🌐 Sprawdź URL aplikacji powyżej"

@@ -1,0 +1,1 @@
+# Folder dla plików statycznych

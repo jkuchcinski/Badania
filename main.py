@@ -1,43 +1,118 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel, validator
 import csv
 import os
 import io
+import secrets
+import time
+import logging
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 import pytz
+from collections import defaultdict
+
+# Konfiguracja logowania
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Serwuj pliki statyczne (SVG, itp.)
-app.mount("/static", StaticFiles(directory="."), name="static")
+# Utwórz folder dla plików statycznych jeśli nie istnieje
+STATIC_DIR = "static_files"
+os.makedirs(STATIC_DIR, exist_ok=True)
 
-# CORS middleware dla lokalnego developmentu
+# Serwuj pliki statyczne tylko z dedykowanego folderu
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+# CORS middleware - tylko dla domeny produkcyjnej
+ALLOWED_ORIGINS = [
+    "https://badania.decentcode.pl",
+    "https://www.badania.decentcode.pl",
+    "https://badania-app-523686224252.europe-west1.run.app",
+]
+# W trybie developmentu można dodać localhost
+if os.getenv("ENVIRONMENT") == "development":
+    ALLOWED_ORIGINS.extend(["http://localhost:8080", "http://127.0.0.1:8080"])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+# Session middleware dla autentykacji
+SECRET_KEY = os.getenv("SECRET_KEY", secrets.token_urlsafe(32))
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SECRET_KEY,
+    max_age=3600 * 24,  # 24 godziny
+    same_site="lax",
+    https_only=True if os.getenv("ENVIRONMENT") != "development" else False
+)
+
+# Rate limiting - słownik do przechowywania prób logowania
+login_attempts = defaultdict(list)
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_LOCKOUT_TIME = 900  # 15 minut w sekundach
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
-    """Obsługa błędów walidacji z bardziej czytelnymi komunikatami"""
+    """Obsługa błędów walidacji - ograniczone szczegóły dla bezpieczeństwa"""
+    # Loguj szczegółowe błędy na serwerze
     errors = []
     for error in exc.errors():
         field = ".".join(str(loc) for loc in error.get("loc", []))
         msg = error.get("msg", "Błąd walidacji")
         errors.append(f"{field}: {msg}")
+    logger.warning(f"Błąd walidacji: {errors} z IP: {request.client.host if request.client else 'unknown'}")
+    # Zwróć ogólny komunikat dla użytkownika
     return JSONResponse(
         status_code=422,
-        content={"detail": "; ".join(errors)}
+        content={"detail": "Błąd walidacji danych"}
     )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    """Obsługa ogólnych błędów - nie ujawnia szczegółów"""
+    logger.error(f"Nieoczekiwany błąd: {str(exc)} z IP: {request.client.host if request.client else 'unknown'}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Wystąpił błąd serwera"}
+    )
+
+# Middleware do dodawania nagłówków bezpieczeństwa
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # HSTS tylko dla HTTPS
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    # Content Security Policy
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self';"
+    )
+    return response
 
 # Konfiguracja Google Cloud Storage
 BUCKET_NAME = "hipokrates"
@@ -46,12 +121,23 @@ CSV_FILE = "badania.csv"  # Dla lokalnego fallback
 PLATNOSCI_FILE_NAME = "platnosci.csv"
 PLATNOSCI_FILE = "platnosci.csv"  # Dla lokalnego fallback
 
+# Hasło z zmiennej środowiskowej (domyślnie dla developmentu)
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "hipokrates")
+if ADMIN_PASSWORD == "hipokrates" and os.getenv("ENVIRONMENT") != "development":
+    logger.warning("Używane domyślne hasło! Ustaw ADMIN_PASSWORD w zmiennych środowiskowych.")
+
+# Timeouty dla operacji I/O (w sekundach)
+STORAGE_TIMEOUT = 30
+
 def get_storage_client():
     """Zwraca klienta Google Cloud Storage lub None jeśli nie jest dostępny"""
     try:
         from google.cloud import storage
+        from google.api_core import timeout
+        # Dodaj timeout dla operacji
         return storage.Client()
-    except Exception:
+    except Exception as e:
+        logger.error(f"Błąd podczas inicjalizacji Cloud Storage: {e}")
         return None
 
 def parse_price(price_str: str) -> float:
@@ -70,16 +156,33 @@ def load_badania() -> List[Dict]:
     badania = []
     csv_content = None
     
-    # Próbuj pobrać z Google Cloud Storage
+    # Próbuj pobrać z Google Cloud Storage z timeoutem
     storage_client = get_storage_client()
     if storage_client:
         try:
-            bucket = storage_client.bucket(BUCKET_NAME)
-            blob = bucket.blob(CSV_FILE_NAME)
-            csv_content = blob.download_as_text(encoding='utf-8')
+            import signal
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError("Timeout podczas pobierania z Cloud Storage")
+            
+            # Ustaw timeout (tylko na Unix)
+            if hasattr(signal, 'SIGALRM'):
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(STORAGE_TIMEOUT)
+            
+            try:
+                bucket = storage_client.bucket(BUCKET_NAME)
+                blob = bucket.blob(CSV_FILE_NAME)
+                csv_content = blob.download_as_text(encoding='utf-8', timeout=STORAGE_TIMEOUT)
+            finally:
+                if hasattr(signal, 'SIGALRM'):
+                    signal.alarm(0)  # Wyłącz alarm
+        except TimeoutError:
+            logger.error("Timeout podczas pobierania z Cloud Storage")
+            csv_content = None
         except Exception as e:
-            print(f"Błąd podczas pobierania z Cloud Storage: {e}")
-            # Fallback do lokalnego pliku
+            logger.error(f"Błąd podczas pobierania z Cloud Storage: {e}")
+            csv_content = None
     
     # Jeśli nie udało się pobrać z Cloud Storage, spróbuj lokalnie
     if csv_content is None:
@@ -114,34 +217,104 @@ async def read_root():
     with open("index.html", "r", encoding="utf-8") as f:
         return f.read()
 
+# Funkcja pomocnicza do sprawdzania rate limiting
+def check_rate_limit(client_ip: str) -> bool:
+    """Sprawdza czy IP nie przekroczyło limitu prób logowania"""
+    now = time.time()
+    # Usuń stare próby (starsze niż LOGIN_LOCKOUT_TIME)
+    login_attempts[client_ip] = [
+        attempt_time for attempt_time in login_attempts[client_ip]
+        if now - attempt_time < LOGIN_LOCKOUT_TIME
+    ]
+    
+    # Sprawdź czy przekroczono limit
+    if len(login_attempts[client_ip]) >= MAX_LOGIN_ATTEMPTS:
+        return False
+    return True
+
+def record_login_attempt(client_ip: str):
+    """Zapisuje próbę logowania"""
+    login_attempts[client_ip].append(time.time())
+
 @app.post("/api/login")
 async def login(request: Request):
-    """Weryfikuje hasło"""
-    data = await request.json()
-    password = data.get("password", "")
+    """Weryfikuje hasło z rate limiting"""
+    client_ip = request.client.host if request.client else "unknown"
     
-    if password == "hipokrates":
-        return {"success": True}
-    else:
-        raise HTTPException(status_code=401, detail="Nieprawidłowe hasło")
+    # Sprawdź rate limiting
+    if not check_rate_limit(client_ip):
+        logger.warning(f"Zbyt wiele prób logowania z IP: {client_ip}")
+        raise HTTPException(
+            status_code=429,
+            detail="Zbyt wiele prób logowania. Spróbuj ponownie za 15 minut."
+        )
+    
+    try:
+        data = await request.json()
+        password = data.get("password", "")
+        
+        # Porównaj hasło używając bezpiecznego porównania
+        if secrets.compare_digest(password, ADMIN_PASSWORD):
+            # Zalogowano pomyślnie - wyczyść próby
+            login_attempts[client_ip] = []
+            # Ustaw sesję
+            request.session["authenticated"] = True
+            request.session["login_time"] = time.time()
+            logger.info(f"Pomyślne logowanie z IP: {client_ip}")
+            return {"success": True}
+        else:
+            # Nieprawidłowe hasło - zapisz próbę
+            record_login_attempt(client_ip)
+            logger.warning(f"Nieprawidłowe hasło z IP: {client_ip}")
+            raise HTTPException(status_code=401, detail="Nieprawidłowe hasło")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Błąd podczas logowania: {e}")
+        raise HTTPException(status_code=500, detail="Wystąpił błąd podczas logowania")
+
+# Dependency do sprawdzania autentykacji
+async def require_auth(request: Request):
+    """Sprawdza czy użytkownik jest zalogowany"""
+    if not request.session.get("authenticated"):
+        logger.warning(f"Próba dostępu bez autentykacji z IP: {request.client.host if request.client else 'unknown'}")
+        raise HTTPException(
+            status_code=401,
+            detail="Wymagane logowanie"
+        )
+    # Sprawdź czy sesja nie wygasła (24 godziny)
+    login_time = request.session.get("login_time", 0)
+    if time.time() - login_time > 3600 * 24:
+        request.session.clear()
+        raise HTTPException(
+            status_code=401,
+            detail="Sesja wygasła"
+        )
+    return True
 
 @app.get("/api/badania")
-async def get_badania():
-    """Zwraca wszystkie badania posortowane alfabetycznie"""
+async def get_badania(auth: bool = Depends(require_auth)):
+    """Zwraca wszystkie badania posortowane alfabetycznie - wymaga autentykacji"""
+    logger.info(f"Pobieranie listy badań")
     badania = load_badania()
     # Sortuj alfabetycznie po nazwie
     badania_sorted = sorted(badania, key=lambda x: x['nazwa'].lower())
     return {"badania": badania_sorted}
 
 @app.post("/api/search")
-async def search_badania(request: Request):
-    """Wyszukuje badania po nazwie"""
+async def search_badania(request: Request, auth: bool = Depends(require_auth)):
+    """Wyszukuje badania po nazwie - wymaga autentykacji"""
     data = await request.json()
     query = data.get("query", "").strip().lower()
+    
+    # Walidacja długości zapytania
+    if len(query) > 200:
+        raise HTTPException(status_code=400, detail="Zapytanie zbyt długie")
     
     if not query:
         return {"badania": []}
     
+    logger.info(f"Wyszukiwanie: {query[:50]}...")
     wszystkie_badania = load_badania()
     # Wyszukiwanie case-insensitive
     results = [
@@ -157,18 +330,36 @@ def load_full_csv() -> Tuple[List[Dict], Optional[int]]:
     csv_content = None
     generation = None
     
-    # Próbuj pobrać z Google Cloud Storage
+    # Próbuj pobrać z Google Cloud Storage z timeoutem
     storage_client = get_storage_client()
     if storage_client:
         try:
-            bucket = storage_client.bucket(BUCKET_NAME)
-            blob = bucket.blob(CSV_FILE_NAME)
-            # Pobierz generation number dla optimistic locking
-            blob.reload()
-            generation = blob.generation
-            csv_content = blob.download_as_text(encoding='utf-8')
+            import signal
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError("Timeout podczas pobierania z Cloud Storage")
+            
+            # Ustaw timeout (tylko na Unix)
+            if hasattr(signal, 'SIGALRM'):
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(STORAGE_TIMEOUT)
+            
+            try:
+                bucket = storage_client.bucket(BUCKET_NAME)
+                blob = bucket.blob(CSV_FILE_NAME)
+                # Pobierz generation number dla optimistic locking
+                blob.reload(timeout=STORAGE_TIMEOUT)
+                generation = blob.generation
+                csv_content = blob.download_as_text(encoding='utf-8', timeout=STORAGE_TIMEOUT)
+            finally:
+                if hasattr(signal, 'SIGALRM'):
+                    signal.alarm(0)  # Wyłącz alarm
+        except TimeoutError:
+            logger.error("Timeout podczas pobierania z Cloud Storage")
+            csv_content = None
         except Exception as e:
-            print(f"Błąd podczas pobierania z Cloud Storage: {e}")
+            logger.error(f"Błąd podczas pobierania z Cloud Storage: {e}")
+            csv_content = None
     
     # Jeśli nie udało się pobrać z Cloud Storage, spróbuj lokalnie
     if csv_content is None:
@@ -184,8 +375,9 @@ def load_full_csv() -> Tuple[List[Dict], Optional[int]]:
     return list(reader), generation
 
 @app.get("/api/badania/edit")
-async def get_badania_for_edit():
-    """Zwraca wszystkie badania do edycji"""
+async def get_badania_for_edit(auth: bool = Depends(require_auth)):
+    """Zwraca wszystkie badania do edycji - wymaga autentykacji"""
+    logger.info("Pobieranie badań do edycji")
     badania, _ = load_full_csv()  # Ignoruj generation number dla odczytu
     # Konwertuj nazwy kolumn dla frontendu
     result = []
@@ -249,9 +441,18 @@ class BadaniaUpdate(BaseModel):
     badania: List[BadanieRow]
 
 @app.post("/api/badania/save")
-async def save_badania(data: BadaniaUpdate):
-    """Zapisuje badania do Cloud Storage lub lokalnie
+async def save_badania(data: BadaniaUpdate, request: Request, auth: bool = Depends(require_auth)):
+    """Zapisuje badania do Cloud Storage lub lokalnie - wymaga autentykacji
     Używa optimistic locking z generation numbers aby zapobiec race conditions"""
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Walidacja rozmiaru danych
+    if len(data.badania) > 10000:
+        logger.warning(f"Próba zapisu zbyt dużej liczby badań ({len(data.badania)}) z IP: {client_ip}")
+        raise HTTPException(status_code=400, detail="Zbyt duża liczba badań (maksymalnie 10000)")
+    
+    logger.info(f"Zapisywanie {len(data.badania)} badań z IP: {client_ip}")
+    
     max_retries = 5
     retry_count = 0
     
@@ -365,19 +566,36 @@ def load_platnosci() -> Tuple[List[Dict], Optional[int]]:
     csv_content = None
     generation = None
     
-    # Próbuj pobrać z Google Cloud Storage
+    # Próbuj pobrać z Google Cloud Storage z timeoutem
     storage_client = get_storage_client()
     if storage_client:
         try:
-            bucket = storage_client.bucket(BUCKET_NAME)
-            blob = bucket.blob(PLATNOSCI_FILE_NAME)
-            # Pobierz generation number dla optimistic locking
-            blob.reload()
-            generation = blob.generation
-            csv_content = blob.download_as_text(encoding='utf-8')
+            import signal
+            
+            def timeout_handler(signum, frame):
+                raise TimeoutError("Timeout podczas pobierania z Cloud Storage")
+            
+            # Ustaw timeout (tylko na Unix)
+            if hasattr(signal, 'SIGALRM'):
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(STORAGE_TIMEOUT)
+            
+            try:
+                bucket = storage_client.bucket(BUCKET_NAME)
+                blob = bucket.blob(PLATNOSCI_FILE_NAME)
+                # Pobierz generation number dla optimistic locking
+                blob.reload(timeout=STORAGE_TIMEOUT)
+                generation = blob.generation
+                csv_content = blob.download_as_text(encoding='utf-8', timeout=STORAGE_TIMEOUT)
+            finally:
+                if hasattr(signal, 'SIGALRM'):
+                    signal.alarm(0)  # Wyłącz alarm
+        except TimeoutError:
+            logger.error("Timeout podczas pobierania platnosci.csv z Cloud Storage")
+            csv_content = None
         except Exception as e:
-            print(f"Błąd podczas pobierania platnosci.csv z Cloud Storage: {e}")
-            # Fallback do lokalnego pliku
+            logger.error(f"Błąd podczas pobierania platnosci.csv z Cloud Storage: {e}")
+            csv_content = None
     
     # Jeśli nie udało się pobrać z Cloud Storage, spróbuj lokalnie
     if csv_content is None:
@@ -393,9 +611,21 @@ def load_platnosci() -> Tuple[List[Dict], Optional[int]]:
     return list(reader), generation
 
 @app.post("/api/platnosci/save")
-async def save_platnosc(data: PlatnoscCreate):
-    """Zapisuje płatność do pliku platnosci.csv w Cloud Storage lub lokalnie
+async def save_platnosc(data: PlatnoscCreate, request: Request, auth: bool = Depends(require_auth)):
+    """Zapisuje płatność do pliku platnosci.csv w Cloud Storage lub lokalnie - wymaga autentykacji
     Używa optimistic locking z generation numbers aby zapobiec race conditions"""
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Walidacja danych
+    if data.kwota < 0 or data.kwota > 1000000:
+        logger.warning(f"Nieprawidłowa kwota ({data.kwota}) z IP: {client_ip}")
+        raise HTTPException(status_code=400, detail="Nieprawidłowa kwota")
+    
+    if len(data.uwagi) > 1000:
+        raise HTTPException(status_code=400, detail="Uwagi zbyt długie (maksymalnie 1000 znaków)")
+    
+    logger.info(f"Zapisywanie płatności: {data.kwota} zł z IP: {client_ip}")
+    
     max_retries = 5
     retry_count = 0
     
@@ -500,8 +730,8 @@ async def save_platnosc(data: PlatnoscCreate):
     raise HTTPException(status_code=500, detail="Nie udało się zapisać płatności po kilku próbach")
 
 @app.get("/api/platnosci/stats")
-async def get_daily_stats():
-    """Zwraca statystyki transakcji z dzisiejszego dnia"""
+async def get_daily_stats(auth: bool = Depends(require_auth)):
+    """Zwraca statystyki transakcji z dzisiejszego dnia - wymaga autentykacji"""
     try:
         # Wczytaj wszystkie płatności (ignoruj generation number dla odczytu)
         platnosci, _ = load_platnosci()
@@ -552,9 +782,12 @@ async def get_daily_stats():
         raise HTTPException(status_code=500, detail=f"Błąd podczas pobierania statystyk: {str(e)}")
 
 @app.get("/api/platnosci/by-date")
-async def get_platnosci_by_date(date: str):
-    """Zwraca transakcje z wybranego dnia"""
+async def get_platnosci_by_date(date: str, auth: bool = Depends(require_auth)):
+    """Zwraca transakcje z wybranego dnia - wymaga autentykacji"""
     try:
+        # Walidacja formatu daty
+        if len(date) > 20:
+            raise HTTPException(status_code=400, detail="Nieprawidłowy format daty")
         # Wczytaj wszystkie płatności (ignoruj generation number dla odczytu)
         platnosci, _ = load_platnosci()
         
@@ -584,8 +817,11 @@ async def get_platnosci_by_date(date: str):
         return {
             "transactions": filtered_platnosci
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Błąd podczas pobierania transakcji: {str(e)}")
+        logger.error(f"Błąd podczas pobierania transakcji: {e}")
+        raise HTTPException(status_code=500, detail="Błąd podczas pobierania transakcji")
 
 if __name__ == "__main__":
     import uvicorn

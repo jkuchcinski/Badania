@@ -1,7 +1,7 @@
 steps:
-  # Zbuduj obraz Docker
+  # Zbuduj obraz Docker (platform: linux/amd64)
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/badania-app', '.']
+    args: ['build', '--platform', 'linux/amd64', '-t', 'gcr.io/$PROJECT_ID/badania-app', '.']
   
   # Wypchnij obraz do Container Registry
   - name: 'gcr.io/cloud-builders/docker'
@@ -23,6 +23,8 @@ steps:
       - '--allow-unauthenticated'
       - '--port'
       - '8080'
+      - '--set-env-vars'
+      - 'ADMIN_PASSWORD=hipokrates,SECRET_KEY=GZ55q2jtgI3m6NL1hMd_HqlFGnTxNyxY8XJZzKy2e04'
 
 images:
   - 'gcr.io/$PROJECT_ID/badania-app'

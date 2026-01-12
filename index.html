@@ -2067,6 +2067,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include', // Wymagane dla sesji
                     body: JSON.stringify({ password })
                 });
 
@@ -2086,6 +2087,10 @@
                     }, 100);
                     loadAllBadania();
                     loadDailyStats(); // Załaduj statystyki asynchronicznie
+                } else if (response.status === 429) {
+                    // Rate limiting
+                    errorMessage.textContent = 'Zbyt wiele prób logowania. Spróbuj ponownie za 15 minut.';
+                    errorMessage.style.display = 'block';
                 } else {
                     errorMessage.style.display = 'block';
                 }
@@ -2107,7 +2112,17 @@
                     progressOverlay.classList.remove('hidden');
                 }
                 
-                const response = await fetch(`${API_BASE}/api/badania`);
+                const response = await fetch(`${API_BASE}/api/badania`, {
+                    credentials: 'include' // Wymagane dla sesji
+                });
+                
+                if (response.status === 401) {
+                    // Sesja wygasła - przekieruj do logowania
+                    document.getElementById('loginContainer').style.display = 'block';
+                    document.getElementById('appContainer').classList.remove('active');
+                    return;
+                }
+                
                 const data = await response.json();
                 allBadania = data.badania;
                 filteredBadania = allBadania;
@@ -2134,7 +2149,16 @@
                     statsProgress.classList.remove('hidden');
                 }
                 
-                const response = await fetch(`${API_BASE}/api/platnosci/stats`);
+                const response = await fetch(`${API_BASE}/api/platnosci/stats`, {
+                    credentials: 'include'
+                });
+                
+                if (response.status === 401) {
+                    document.getElementById('loginContainer').style.display = 'block';
+                    document.getElementById('appContainer').classList.remove('active');
+                    return;
+                }
+                
                 const data = await response.json();
                 
                 // Zaktualizuj label z datą i czasem z ostatniej transakcji
@@ -2434,6 +2458,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify({
                         uid: uid,
                         data: dateStr,
@@ -2551,7 +2576,16 @@
                     progressOverlay.classList.remove('hidden');
                 }
                 
-                const response = await fetch(`${API_BASE}/api/badania/edit`);
+                const response = await fetch(`${API_BASE}/api/badania/edit`, {
+                    credentials: 'include'
+                });
+                
+                if (response.status === 401) {
+                    document.getElementById('loginContainer').style.display = 'block';
+                    document.getElementById('appContainer').classList.remove('active');
+                    return;
+                }
+                
                 const data = await response.json();
                 editData = data.badania;
                 renderEditTable();
@@ -2729,6 +2763,7 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'include',
                     body: JSON.stringify({ badania: editData })
                 });
 
@@ -2930,7 +2965,16 @@
                 }
 
                 // Wyślij datę w formacie YYYY-MM-DD (z date pickera)
-                const response = await fetch(`${API_BASE}/api/platnosci/by-date?date=${selectedTransactionDate}`);
+                const response = await fetch(`${API_BASE}/api/platnosci/by-date?date=${selectedTransactionDate}`, {
+                    credentials: 'include'
+                });
+                
+                if (response.status === 401) {
+                    document.getElementById('loginContainer').style.display = 'block';
+                    document.getElementById('appContainer').classList.remove('active');
+                    return;
+                }
+                
                 const data = await response.json();
                 transactionsForDate = data.transactions || [];
                 
@@ -3125,7 +3169,16 @@
                 const dateStrForAPI = `${reportDate.getFullYear()}-${String(reportDate.getMonth() + 1).padStart(2, '0')}-${String(reportDate.getDate()).padStart(2, '0')}`;
                 
                 // Pobierz transakcje z wybranego dnia
-                const response = await fetch(`${API_BASE}/api/platnosci/by-date?date=${dateStrForAPI}`);
+                const response = await fetch(`${API_BASE}/api/platnosci/by-date?date=${dateStrForAPI}`, {
+                    credentials: 'include'
+                });
+                
+                if (response.status === 401) {
+                    document.getElementById('loginContainer').style.display = 'block';
+                    document.getElementById('appContainer').classList.remove('active');
+                    return;
+                }
+                
                 const data = await response.json();
                 const transactions = data.transactions || [];
                 
@@ -3372,7 +3425,16 @@
                 for (let day = 1; day <= lastDayToCheck; day++) {
                     const dateStrForAPI = `${year}-${monthStr}-${String(day).padStart(2, '0')}`;
                     try {
-                        const response = await fetch(`${API_BASE}/api/platnosci/by-date?date=${dateStrForAPI}`);
+                        const response = await fetch(`${API_BASE}/api/platnosci/by-date?date=${dateStrForAPI}`, {
+                            credentials: 'include'
+                        });
+                        
+                        if (response.status === 401) {
+                            document.getElementById('loginContainer').style.display = 'block';
+                            document.getElementById('appContainer').classList.remove('active');
+                            return;
+                        }
+                        
                         const data = await response.json();
                         if (data.transactions && data.transactions.length > 0) {
                             allTransactions.push(...data.transactions);
