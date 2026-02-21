@@ -1722,7 +1722,7 @@
             <div class="error-message" id="errorMessage">Nieprawidłowe hasło</div>
         </form>
         <div class="copyright">
-            <p>&copy; 2025 Decent Code sp. z o.o.</p>
+            <p>&copy; 2025–2026 Decent Code sp. z o.o.</p>
             <p>All rights reserved</p>
         </div>
     </div>
@@ -1741,7 +1741,7 @@
                     <button class="edit-button" onclick="openEditModal()">Edytuj dane</button>
                 </div>
                 <div class="search-container">
-                    <input type="text" class="search-input" id="searchInput" placeholder="Filtruj badania po nazwie...">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Filtruj badania po nazwie lub kodzie...">
                 </div>
                 <div class="left-panel-table-wrapper">
                     <table class="results-table" id="allBadaniaTable">
@@ -1936,6 +1936,9 @@
                     <button class="save-button" onclick="saveEditData()">Zapisz</button>
                     <button class="close-button" onclick="closeEditModal()">Zamknij</button>
                 </div>
+            </div>
+            <div class="edit-filter-container" style="margin-bottom: 12px;">
+                <input type="text" class="search-input" id="editFilterInput" placeholder="Filtruj wiersze (kod, nazwa, kwota)...">
             </div>
             <div id="editTableContainer">
                 <table class="edit-table" id="editTable">
@@ -2275,18 +2278,26 @@
         let searchTimeout;
         document.getElementById('searchInput').addEventListener('input', (e) => {
             clearTimeout(searchTimeout);
-            const query = e.target.value.trim().toLowerCase();
+            const query = e.target.value.trim();
 
             searchTimeout = setTimeout(() => {
                 if (query.length === 0) {
                     filteredBadania = allBadania;
                 } else {
-                    filteredBadania = allBadania.filter(badanie => 
-                        badanie.nazwa.toLowerCase().includes(query)
-                    );
+                    const q = query.toLowerCase();
+                    filteredBadania = allBadania.filter(badanie => {
+                        const n = (badanie.nazwa || '').toLowerCase();
+                        const k = (badanie.kod ?? '').toString().toLowerCase();
+                        return n.includes(q) || k.includes(q);
+                    });
                 }
                 displayAllBadania();
             }, 300);
+        });
+
+        document.getElementById('editFilterInput').addEventListener('input', (e) => {
+            editFilterQuery = e.target.value;
+            renderEditTable();
         });
 
 
@@ -2499,6 +2510,7 @@
 
         // Funkcje do edycji danych
         let editData = [];
+        let editFilterQuery = '';
         let allBadaniaBeforeEdit = []; // Zapamiętaj dane przed edycją
 
         function openEditModal() {
@@ -2511,6 +2523,10 @@
             if (modalContent) {
                 modalContent.style.height = '90vh';
             }
+            // Wyczyść filtr edycji
+            editFilterQuery = '';
+            const editFilterEl = document.getElementById('editFilterInput');
+            if (editFilterEl) editFilterEl.value = '';
             // Wyczyść dane i tabelę przed załadowaniem nowych
             editData = [];
             const tbody = document.getElementById('editTableBody');
@@ -2606,30 +2622,40 @@
 
         function renderEditTable() {
             const tbody = document.getElementById('editTableBody');
-            tbody.innerHTML = editData.map((row, index) => `
+            const q = (editFilterQuery || '').trim().toLowerCase();
+            const rowsToShow = q === ''
+                ? editData.map((row, index) => ({ row, index }))
+                : editData.map((row, index) => ({ row, index })).filter(({ row }) => {
+                    const kod = (row.KOD || '').toLowerCase();
+                    const nazwa = (row.NAZWA_BADANIA || '').toLowerCase();
+                    const kwota = (row.KWOTA || '').toLowerCase();
+                    const kwota2 = (row.KWOTA_2 || '').toLowerCase();
+                    return kod.includes(q) || nazwa.includes(q) || kwota.includes(q) || kwota2.includes(q);
+                });
+            tbody.innerHTML = rowsToShow.map(({ row, index }) => `
                 <tr data-index="${index}">
                     <td>
                         <input type="text" 
-                               value="${row.KOD || ''}" 
+                               value="${(row.KOD || '').replace(/"/g, '&quot;')}" 
                                onchange="updateEditData(${index}, 'KOD', this.value)"
                                class="kod-input"
                                data-index="${index}">
                     </td>
                     <td>
                         <input type="text" 
-                               value="${row.NAZWA_BADANIA || ''}" 
+                               value="${(row.NAZWA_BADANIA || '').replace(/"/g, '&quot;')}" 
                                onchange="updateEditData(${index}, 'NAZWA_BADANIA', this.value)"
                                data-index="${index}">
                     </td>
                     <td>
                         <input type="text" 
-                               value="${row.KWOTA || ''}" 
+                               value="${(row.KWOTA || '').replace(/"/g, '&quot;')}" 
                                onchange="updateEditData(${index}, 'KWOTA', this.value)"
                                data-index="${index}">
                     </td>
                     <td>
                         <input type="text" 
-                               value="${row.KWOTA_2 || ''}" 
+                               value="${(row.KWOTA_2 || '').replace(/"/g, '&quot;')}" 
                                onchange="updateEditData(${index}, 'KWOTA_2', this.value)"
                                data-index="${index}">
                     </td>

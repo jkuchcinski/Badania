@@ -30,6 +30,21 @@ app = FastAPI()
 STATIC_DIR = "static_files"
 os.makedirs(STATIC_DIR, exist_ok=True)
 
+# Upewnij się, że logo jest w static_files (np. przy uruchomieniu z innego katalogu lub w Dockerze)
+LOGO_NAME = "decent-code-1024x0.png"
+_logo_dest = os.path.join(STATIC_DIR, LOGO_NAME)
+if not os.path.isfile(_logo_dest):
+    for _src_dir in (os.path.dirname(os.path.abspath(__file__)), os.getcwd()):
+        _logo_src = os.path.join(_src_dir, LOGO_NAME)
+        if os.path.isfile(_logo_src):
+            try:
+                import shutil
+                shutil.copy2(_logo_src, _logo_dest)
+                logger.info(f"Skopiowano logo do {_logo_dest}")
+            except Exception as e:
+                logger.warning(f"Nie udało się skopiować logo: {e}")
+            break
+
 # Serwuj pliki statyczne tylko z dedykowanego folderu
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
