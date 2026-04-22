@@ -11,8 +11,8 @@ COPY main.py .
 COPY index.html .
 # Logo w static_files – aplikacja serwuje pliki statyczne z tego folderu
 COPY decent-code-1024x0.png static_files/
-# badania.csv jest wczytywany z Google Cloud Storage bucket "hipokrates"
-# COPY badania.csv .  # Opcjonalnie dla lokalnego fallback
+# badania.csv: na produkcji (Cloud Run) z GCS; lokalnie / Docker Desktop — plik z hosta
+# (deploy-docker.sh montuje ./badania.csv do /app/badania.csv) lub COPY przy własnym buildzie
 
 # Uruchom aplikację
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

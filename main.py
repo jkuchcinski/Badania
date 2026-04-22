@@ -155,6 +155,12 @@ def get_storage_client():
         logger.error(f"Błąd podczas inicjalizacji Cloud Storage: {e}")
         return None
 
+
+def use_cloud_storage_for_csv() -> bool:
+    """W ENVIRONMENT=development (Docker Desktop, lokalny uvicorn) wyłącznie pliki CSV w katalogu aplikacji.
+    Google Cloud Storage jest używany na produkcji (np. Cloud Run), gdzie ENVIRONMENT nie jest ustawione na development."""
+    return os.getenv("ENVIRONMENT") != "development"
+
 def parse_price(price_str: str) -> float:
     """Konwertuje cenę z formatu '2,00' na float"""
     if not price_str or price_str.strip() == "":
@@ -171,8 +177,8 @@ def load_badania() -> List[Dict]:
     badania = []
     csv_content = None
     
-    # Próbuj pobrać z Google Cloud Storage z timeoutem
-    storage_client = get_storage_client()
+    # Próbuj pobrać z Google Cloud Storage z timeoutem (poza trybem development)
+    storage_client = get_storage_client() if use_cloud_storage_for_csv() else None
     if storage_client:
         try:
             import signal
@@ -345,8 +351,8 @@ def load_full_csv() -> Tuple[List[Dict], Optional[int]]:
     csv_content = None
     generation = None
     
-    # Próbuj pobrać z Google Cloud Storage z timeoutem
-    storage_client = get_storage_client()
+    # Próbuj pobrać z Google Cloud Storage z timeoutem (poza trybem development)
+    storage_client = get_storage_client() if use_cloud_storage_for_csv() else None
     if storage_client:
         try:
             import signal
@@ -503,7 +509,7 @@ async def save_badania(data: BadaniaUpdate, request: Request, auth: bool = Depen
             csv_content = output.getvalue()
             
             # Próbuj zapisać do Cloud Storage z optimistic locking
-            storage_client = get_storage_client()
+            storage_client = get_storage_client() if use_cloud_storage_for_csv() else None
             if storage_client:
                 try:
                     bucket = storage_client.bucket(BUCKET_NAME)
@@ -581,8 +587,8 @@ def load_platnosci() -> Tuple[List[Dict], Optional[int]]:
     csv_content = None
     generation = None
     
-    # Próbuj pobrać z Google Cloud Storage z timeoutem
-    storage_client = get_storage_client()
+    # Próbuj pobrać z Google Cloud Storage z timeoutem (poza trybem development)
+    storage_client = get_storage_client() if use_cloud_storage_for_csv() else None
     if storage_client:
         try:
             import signal
@@ -679,7 +685,7 @@ async def save_platnosc(data: PlatnoscCreate, request: Request, auth: bool = Dep
             csv_content = output.getvalue()
             
             # Próbuj zapisać do Cloud Storage z optimistic locking
-            storage_client = get_storage_client()
+            storage_client = get_storage_client() if use_cloud_storage_for_csv() else None
             if storage_client:
                 try:
                     bucket = storage_client.bucket(BUCKET_NAME)
